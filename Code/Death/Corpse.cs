@@ -12,8 +12,34 @@ public sealed class Corpse : Component
 
 	[Property] public ModelPhysics Physics { get; set; }
 
+	private bool configurationDone;
+
 	protected override void OnStart()
 	{
+		TryConfigurePhysics();
+	}
+
+	protected override void OnUpdate()
+	{
+		if ( !configurationDone ) TryConfigurePhysics();
+	}
+
+	// ModelPhysics may not have generated the ragdoll bodies by the time
+	// our OnStart fires (component start order is not guaranteed). Keep
+	// retrying each frame until the body list is non-empty, then run the
+	// cause-specific configuration once and stop.
+	private void TryConfigurePhysics()
+	{
+		if ( Physics?.PhysicsGroup is null ) return;
+
+		var hasBodies = false;
+		foreach ( var _ in Physics.PhysicsGroup.Bodies )
+		{
+			hasBodies = true;
+			break;
+		}
+		if ( !hasBodies ) return;
+
 		if ( Cause == DeathCause.Decompression )
 		{
 			ConfigureVacuumPhysics();
@@ -27,6 +53,8 @@ public sealed class Corpse : Component
 		{
 			ConfigureNormalPhysics();
 		}
+
+		configurationDone = true;
 	}
 
 	private void ConfigureVacuumPhysics()
