@@ -47,6 +47,17 @@ public static class DebugCommands
 		target.Kill( cause, Vector3.Zero );
 	}
 
+	[ConCmd( "decompv2_cleanup_corpses" )]
+	public static void CleanupCorpses()
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_cleanup_corpses: host only" );
+			return;
+		}
+		CorpseCleanupSignal.RaiseGenericCleanup();
+	}
+
 	[ConCmd( "decompv2_vent_self" )]
 	public static void VentSelf()
 	{
