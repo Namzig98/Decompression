@@ -46,4 +46,23 @@ public static class DebugCommands
 
 		target.Kill( cause, Vector3.Zero );
 	}
+
+	[ConCmd( "decompv2_vent_self" )]
+	public static void VentSelf()
+	{
+		var localPlayer = Game.ActiveScene?.GetAllComponents<Player>()
+			.FirstOrDefault( p => p.Network.OwnerConnection == Connection.Local );
+
+		if ( localPlayer is null )
+		{
+			Log.Warning( "decompv2_vent_self: no local player found" );
+			return;
+		}
+
+		// Place the synthetic hatch source 100u below the player so the
+		// impulse direction is meaningful (corpse pushed upward, away from
+		// the "breach"). Real hatches in group A will pass their own position.
+		var hatchPos = localPlayer.WorldPosition + Vector3.Down * 100f;
+		localPlayer.Kill( DeathCause.Decompression, hatchPos );
+	}
 }
