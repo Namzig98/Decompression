@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Sandbox;
+using Sandbox.Network;
 
 namespace Decompression;
 
@@ -9,6 +11,17 @@ public sealed class PlayerSpawner : Component, Component.INetworkListener
 	[Property] public List<GameObject> SpawnPoints { get; set; } = new();
 
 	public bool RoundInProgress { get; set; }
+
+	protected override async Task OnLoad()
+	{
+		if ( Scene.IsEditor ) return;
+		if ( !Networking.IsActive )
+		{
+			LoadingScreen.Title = "Creating Lobby";
+			await Task.DelayRealtimeSeconds( 0.1f );
+			Networking.CreateLobby( new LobbyConfig() );
+		}
+	}
 
 	void Component.INetworkListener.OnActive( Connection connection )
 	{
