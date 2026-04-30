@@ -14,7 +14,10 @@ public sealed class Corpse : Component
 
 	[Property] public ModelPhysics Physics { get; set; }
 
+	private const float DecompressionDespawnSeconds = 30f;
+
 	private bool configurationDone;
+	private TimeSince timeSinceSpawn;
 
 	protected override void OnStart()
 	{
@@ -22,12 +25,20 @@ public sealed class Corpse : Component
 		{
 			Physics = Components.Get<ModelPhysics>( includeDisabled: true );
 		}
+		timeSinceSpawn = 0f;
 		TryConfigurePhysics();
 	}
 
 	protected override void OnUpdate()
 	{
 		if ( !configurationDone ) TryConfigurePhysics();
+
+		if ( Networking.IsHost
+			&& Cause == DeathCause.Decompression
+			&& timeSinceSpawn >= DecompressionDespawnSeconds )
+		{
+			Cleanup();
+		}
 	}
 
 	// ModelPhysics generates Rigidbody components on per-bone GameObjects when
