@@ -16,6 +16,12 @@ public sealed class Corpse : Component
 
 	protected override void OnStart()
 	{
+		// Defensive: if the [Property] reference didn't survive Clone(), find
+		// the ModelPhysics on this GameObject ourselves.
+		if ( Physics is null )
+		{
+			Physics = Components.Get<ModelPhysics>( includeDisabled: true );
+		}
 		TryConfigurePhysics();
 	}
 
@@ -40,6 +46,9 @@ public sealed class Corpse : Component
 		}
 		if ( !hasBodies ) return;
 
+		var bodyCount = 0;
+		foreach ( var _ in Physics.PhysicsGroup.Bodies ) bodyCount++;
+
 		if ( Cause == DeathCause.Decompression )
 		{
 			ConfigureVacuumPhysics();
@@ -54,6 +63,7 @@ public sealed class Corpse : Component
 			ConfigureNormalPhysics();
 		}
 
+		Log.Info( $"Corpse configured: Cause={Cause}, Bodies={bodyCount}, IsHost={Networking.IsHost}, SourcePos={SourcePosition}" );
 		configurationDone = true;
 	}
 

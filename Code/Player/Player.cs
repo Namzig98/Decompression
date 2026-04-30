@@ -55,18 +55,25 @@ public sealed class Player : Component
 		}
 
 		var corpseGo = CorpsePrefab.Clone( WorldTransform, name: $"Corpse ({GameObject.Name})" );
-		corpseGo.NetworkSpawn();
 
 		var corpse = corpseGo.Components.Get<Corpse>();
 		if ( corpse is null )
 		{
 			Log.Warning( "Player.Kill: corpse prefab missing Corpse component" );
+			corpseGo.Destroy();
 			return null;
 		}
 
+		// Set the synced state BEFORE NetworkSpawn so the initial state
+		// replicated to clients (and inspected by the host's OnStart) already
+		// contains the correct cause and source position. Setting it after
+		// NetworkSpawn races against OnStart and the empty default Cause
+		// (Generic) gets read instead.
 		corpse.Cause = cause;
 		corpse.SourcePosition = sourcePosition;
 		corpse.OriginalOwnerConnectionId = OwnerConnectionId;
+
+		corpseGo.NetworkSpawn();
 
 		if ( ModelRenderer != null )
 		{
