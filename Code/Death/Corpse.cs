@@ -61,8 +61,10 @@ public sealed class Corpse : Component
 	private void ConfigureVacuumPhysics()
 	{
 		if ( Physics is null ) return;
-		foreach ( var body in Physics.Bodies )
+		foreach ( var modelBody in Physics.Bodies )
 		{
+			var body = modelBody.PhysicsBody;
+			if ( body is null ) continue;
 			body.GravityEnabled = false;
 			body.LinearDamping = 0.05f;
 			body.AngularDamping = 0.05f;
@@ -79,8 +81,11 @@ public sealed class Corpse : Component
 		if ( Physics is null ) return;
 
 		const float impulseStrength = 600f;
-		foreach ( var body in Physics.Bodies )
+		foreach ( var modelBody in Physics.Bodies )
 		{
+			var body = modelBody.PhysicsBody;
+			if ( body is null ) continue;
+
 			var offset = body.Position - SourcePosition;
 			var direction = offset.LengthSquared > 0.0001f
 				? offset.Normal
