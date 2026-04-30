@@ -90,6 +90,23 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void OnPlayerDied( DeathCause cause, Guid corpseId, Vector3 sourcePosition )
 	{
-		// Local effects (HUD, sound, spectator) wired in later tasks.
+		// Local effects (HUD, sound) — HUD/sound added in later tasks.
+
+		if ( !IsLocallyControlled() ) return;
+
+		Corpse corpseRef = null;
+		if ( corpseId != Guid.Empty )
+		{
+			var go = Scene.Directory?.FindByGuid( corpseId );
+			corpseRef = go?.Components.Get<Corpse>();
+		}
+
+		var spectator = Components.Get<Spectator>();
+		spectator?.Begin( corpseRef );
+	}
+
+	private bool IsLocallyControlled()
+	{
+		return Network.Owner == Connection.Local;
 	}
 }
