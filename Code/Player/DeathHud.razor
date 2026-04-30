@@ -1,5 +1,6 @@
 @using Sandbox;
 @using Sandbox.UI;
+@namespace Decompression
 @inherits PanelComponent
 
 <root>
@@ -22,21 +23,21 @@
 
 	protected override void OnAwake()
 	{
-		Player.Died += OnPlayerDied;
+		Decompression.Player.Died += OnPlayerDied;
 	}
 
 	protected override void OnDestroy()
 	{
-		Player.Died -= OnPlayerDied;
+		Decompression.Player.Died -= OnPlayerDied;
 	}
 
-	private void OnPlayerDied( Player player, DeathCause cause )
+	private void OnPlayerDied( Decompression.Player player, Decompression.DeathCause cause )
 	{
 		if ( player.Network.Owner != Connection.Local ) return;
 
 		causeText = cause switch
 		{
-			DeathCause.Decompression => "VACUUM EXPOSURE",
+			Decompression.DeathCause.Decompression => "VACUUM EXPOSURE",
 			_ => "DECEASED",
 		};
 		showFlash = true;
