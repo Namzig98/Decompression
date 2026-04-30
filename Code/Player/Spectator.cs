@@ -13,6 +13,7 @@ public sealed class Spectator : Component
 	private const float CorpseLockDuration = 5f;
 	private TimeSince phaseStarted;
 	private CameraComponent cachedCamera;
+	private Player followedPlayer;
 
 	private CameraComponent Camera
 	{
@@ -70,7 +71,9 @@ public sealed class Spectator : Component
 				break;
 
 			case Phase.FollowingLiving:
-				// Filled in by Task 14.
+				if ( Input.Pressed( "attack1" ) ) CycleNext();
+				if ( Input.Pressed( "attack2" ) ) CyclePrevious();
+				UpdateFollowingLiving();
 				break;
 		}
 	}
@@ -85,7 +88,71 @@ public sealed class Spectator : Component
 		Camera.WorldRotation = Rotation.LookAt( (corpsePos - cameraPos).Normal );
 	}
 
-	// Cycling stubs — implemented in Task 14.
-	public void CycleNext() { }
-	public void CyclePrevious() { }
+	private void UpdateFollowingLiving()
+	{
+		if ( Camera is null ) return;
+
+		// If our followed target died (or was destroyed), drop them and pick again.
+		if ( followedPlayer is not null && (!followedPlayer.IsValid() || !followedPlayer.IsAlive) )
+		{
+			followedPlayer = null;
+		}
+
+		if ( followedPlayer is null )
+		{
+			followedPlayer = PickFirstLiving();
+		}
+
+		if ( followedPlayer is null )
+		{
+			// No living players left — fall back to a map-overview shot.
+			Camera.WorldPosition = Vector3.Up * 1500f;
+			Camera.WorldRotation = Rotation.LookAt( Vector3.Down );
+			return;
+		}
+
+		// Third-person over-shoulder behind the followed player.
+		var targetPos = followedPlayer.WorldPosition + Vector3.Up * 64f;
+		var followForward = followedPlayer.WorldRotation.Forward;
+		var cameraPos = targetPos + (-followForward) * 128f + Vector3.Up * 32f;
+		Camera.WorldPosition = cameraPos;
+		Camera.WorldRotation = Rotation.LookAt( (targetPos - cameraPos).Normal );
+	}
+
+	private Player PickFirstLiving()
+	{
+		return Game.ActiveScene?
+			.GetAllComponents<Player>()
+			.FirstOrDefault( p => p.IsAlive );
+	}
+
+	public void CycleNext()
+	{
+		if ( CurrentPhase != Phase.FollowingLiving ) return;
+		CycleBy( +1 );
+	}
+
+	public void CyclePrevious()
+	{
+		if ( CurrentPhase != Phase.FollowingLiving ) return;
+		CycleBy( -1 );
+	}
+
+	private void CycleBy( int direction )
+	{
+		var living = Game.ActiveScene?
+			.GetAllComponents<Player>()
+			.Where( p => p.IsAlive )
+			.ToList();
+
+		if ( living is null || living.Count == 0 )
+		{
+			followedPlayer = null;
+			return;
+		}
+
+		var idx = followedPlayer is not null ? living.IndexOf( followedPlayer ) : -1;
+		idx = (idx + direction + living.Count) % living.Count;
+		followedPlayer = living[idx];
+	}
 }
