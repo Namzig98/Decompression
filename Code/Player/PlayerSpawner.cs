@@ -33,7 +33,7 @@ public sealed class PlayerSpawner : Component, Component.INetworkListener
 
 	private Transform PickSpawnTransform()
 	{
-		if ( SpawnPoints.Count == 0 ) return Transform.Zero;
+		if ( SpawnPoints.Count == 0 ) return WorldTransform;
 		var pick = SpawnPoints[Game.Random.Int( 0, SpawnPoints.Count - 1 )];
 		return pick.WorldTransform;
 	}
