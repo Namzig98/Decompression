@@ -20,12 +20,30 @@ public sealed class Player : Component
 		IsAlive = false;
 
 		var corpse = SpawnCorpse( cause, sourcePosition );
-		DisableLivingPlayer();
-
 		var corpseId = corpse?.GameObject?.Id ?? Guid.Empty;
 		OnPlayerDied( cause, corpseId, sourcePosition );
 
 		Died?.Invoke( this, cause );
+	}
+
+	protected override void OnUpdate()
+	{
+		// Mirror the synced IsAlive flag onto local presentation/input every
+		// frame, on every client. Doing it imperatively in Kill() only flipped
+		// flags on the host — visibility/movability didn't propagate.
+		if ( ModelRenderer != null && ModelRenderer.Enabled != IsAlive )
+		{
+			ModelRenderer.Enabled = IsAlive;
+		}
+
+		if ( Network.IsOwner )
+		{
+			var controller = Components.Get<PlayerController>( includeDisabled: true );
+			if ( controller != null && controller.Enabled != IsAlive )
+			{
+				controller.Enabled = IsAlive;
+			}
+		}
 	}
 
 	private Corpse SpawnCorpse( DeathCause cause, Vector3 sourcePosition )
@@ -55,19 +73,11 @@ public sealed class Player : Component
 			var corpseRenderer = corpseGo.Components.Get<SkinnedModelRenderer>( includeDisabled: true );
 			if ( corpseRenderer != null && ModelRenderer.Model != null )
 			{
-				corpseRenderer.Model = ModelRenderer.Model;
 				corpseRenderer.WorldTransform = ModelRenderer.WorldTransform;
 			}
 		}
 
 		return corpse;
-	}
-
-	private void DisableLivingPlayer()
-	{
-		var controller = Components.Get<PlayerController>( includeDisabled: true );
-		if ( controller != null ) controller.Enabled = false;
-		if ( ModelRenderer != null ) ModelRenderer.Enabled = false;
 	}
 
 	[Rpc.Broadcast]
