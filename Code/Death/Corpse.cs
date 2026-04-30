@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Sandbox;
 
 namespace Decompression;
@@ -28,77 +30,76 @@ public sealed class Corpse : Component
 		if ( !configurationDone ) TryConfigurePhysics();
 	}
 
-	// ModelPhysics may not have generated the ragdoll bodies by the time
-	// our OnStart fires (component start order is not guaranteed). Keep
-	// retrying each frame until the body list is non-empty, then run the
-	// cause-specific configuration once and stop.
+	// ModelPhysics generates Rigidbody components on per-bone GameObjects when
+	// it builds the ragdoll. Component start order between Corpse and
+	// ModelPhysics on the same GameObject is not guaranteed, so retry each
+	// frame until at least one ragdoll Rigidbody exists, configure it once,
+	// then stop.
 	private void TryConfigurePhysics()
 	{
-		if ( Physics is null ) return;
-
-		var bodyCount = 0;
-		foreach ( var _ in Physics.Bodies ) bodyCount++;
-		if ( bodyCount == 0 ) return;
+		var rigidbodies = GetRagdollRigidbodies();
+		if ( rigidbodies.Count == 0 ) return;
 
 		if ( Cause == DeathCause.Decompression )
 		{
-			ConfigureVacuumPhysics();
+			ConfigureVacuumPhysics( rigidbodies );
 			if ( Networking.IsHost && !ImpulseApplied )
 			{
-				ApplyVacuumImpulse();
+				ApplyVacuumImpulse( rigidbodies );
 				ImpulseApplied = true;
 			}
 		}
 		else
 		{
-			ConfigureNormalPhysics();
+			ConfigureNormalPhysics( rigidbodies );
 		}
 
-		Log.Info( $"Corpse configured: Cause={Cause}, Bodies={bodyCount}, IsHost={Networking.IsHost}, SourcePos={SourcePosition}" );
+		Log.Info( $"Corpse configured: Cause={Cause}, Rigidbodies={rigidbodies.Count}, IsHost={Networking.IsHost}, SourcePos={SourcePosition}" );
 		configurationDone = true;
 	}
 
-	private void ConfigureVacuumPhysics()
+	private List<Rigidbody> GetRagdollRigidbodies()
 	{
-		if ( Physics is null ) return;
-		foreach ( var modelBody in Physics.Bodies )
+		return GameObject.Components
+			.GetAll<Rigidbody>( FindMode.EverythingInSelfAndDescendants )
+			.ToList();
+	}
+
+	private void ConfigureVacuumPhysics( List<Rigidbody> rigidbodies )
+	{
+		foreach ( var rb in rigidbodies )
 		{
-			var body = modelBody.PhysicsBody;
-			if ( body is null ) continue;
-			body.GravityEnabled = false;
-			body.LinearDamping = 0.05f;
-			body.AngularDamping = 0.05f;
+			rb.Gravity = false;
+			rb.LinearDamping = 0.05f;
+			rb.AngularDamping = 0.05f;
 		}
 	}
 
-	private void ConfigureNormalPhysics()
+	private void ConfigureNormalPhysics( List<Rigidbody> rigidbodies )
 	{
 		// Filled in by Task 10.
 	}
 
-	private void ApplyVacuumImpulse()
+	private void ApplyVacuumImpulse( List<Rigidbody> rigidbodies )
 	{
-		if ( Physics is null ) return;
-
 		const float impulseStrength = 600f;
-		foreach ( var modelBody in Physics.Bodies )
+		foreach ( var rb in rigidbodies )
 		{
-			var body = modelBody.PhysicsBody;
-			if ( body is null ) continue;
-
-			var offset = body.Position - SourcePosition;
+			var pos = rb.WorldPosition;
+			var offset = pos - SourcePosition;
 			var direction = offset.LengthSquared > 0.0001f
 				? offset.Normal
 				: Vector3.Random.Normal;
 
-			body.ApplyImpulse( direction * impulseStrength * body.Mass );
+			var mass = rb.PhysicsBody?.Mass ?? 1f;
+			rb.ApplyImpulse( direction * impulseStrength * mass );
 
 			var spin = new Vector3(
 				Game.Random.Float( -100f, 100f ),
 				Game.Random.Float( -100f, 100f ),
 				Game.Random.Float( -100f, 100f )
 			);
-			body.ApplyAngularImpulse( spin * body.Mass );
+			rb.ApplyTorque( spin * mass );
 		}
 	}
 
