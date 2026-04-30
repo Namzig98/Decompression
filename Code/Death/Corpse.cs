@@ -77,7 +77,12 @@ public sealed class Corpse : Component
 
 	private void ConfigureNormalPhysics( List<Rigidbody> rigidbodies )
 	{
-		// Filled in by Task 10.
+		foreach ( var rb in rigidbodies )
+		{
+			rb.Gravity = true;
+			rb.LinearDamping = 0.5f;
+			rb.AngularDamping = 0.5f;
+		}
 	}
 
 	private void ApplyVacuumImpulse( List<Rigidbody> rigidbodies )
