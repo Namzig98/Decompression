@@ -1,0 +1,55 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+
+<root>
+	@if ( showFlash )
+	{
+		<div class="redout"></div>
+	}
+	@if ( showText )
+	{
+		<div class="cause-text">@causeText</div>
+	}
+</root>
+
+@code {
+	bool showFlash;
+	bool showText;
+	string causeText = "";
+	TimeSince flashStarted;
+	TimeSince textStarted;
+
+	protected override void OnAwake()
+	{
+		Player.Died += OnPlayerDied;
+	}
+
+	protected override void OnDestroy()
+	{
+		Player.Died -= OnPlayerDied;
+	}
+
+	private void OnPlayerDied( Player player, DeathCause cause )
+	{
+		if ( player.Network.Owner != Connection.Local ) return;
+
+		causeText = cause switch
+		{
+			DeathCause.Decompression => "VACUUM EXPOSURE",
+			_ => "DECEASED",
+		};
+		showFlash = true;
+		flashStarted = 0f;
+		showText = true;
+		textStarted = 0f;
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showFlash, showText, causeText );
+
+	protected override void OnUpdate()
+	{
+		if ( showFlash && flashStarted > 0.5f ) showFlash = false;
+		if ( showText && textStarted > 4f ) showText = false;
+	}
+}
