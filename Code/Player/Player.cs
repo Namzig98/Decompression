@@ -7,6 +7,8 @@ public sealed class Player : Component
 {
 	[Property] public GameObject CorpsePrefab { get; set; }
 	[Property] public SkinnedModelRenderer ModelRenderer { get; set; }
+	[Property] public SoundEvent DeathSoundDecompression { get; set; }
+	[Property] public SoundEvent DeathSoundGeneric { get; set; }
 
 	[Sync] public bool IsAlive { get; private set; } = true;
 	[Sync] public Guid OwnerConnectionId { get; set; }
@@ -90,7 +92,15 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void OnPlayerDied( DeathCause cause, Guid corpseId, Vector3 sourcePosition )
 	{
-		// Local effects (HUD, sound) — HUD/sound added in later tasks.
+		// Cause-specific death sting plays positionally on every client so
+		// dead-too-late spectators and nearby living players hear it.
+		var sound = cause == DeathCause.Decompression
+			? DeathSoundDecompression
+			: DeathSoundGeneric;
+		if ( sound is not null )
+		{
+			Sound.Play( sound, WorldPosition );
+		}
 
 		if ( !IsLocallyControlled() ) return;
 
