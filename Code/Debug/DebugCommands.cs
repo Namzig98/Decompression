@@ -9,7 +9,7 @@ public static class DebugCommands
 	public static void KillSelf()
 	{
 		var localPlayer = Game.ActiveScene?.GetAllComponents<Player>()
-			.FirstOrDefault( p => p.Network.OwnerConnection == Connection.Local );
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
 
 		if ( localPlayer is null )
 		{
@@ -36,7 +36,7 @@ public static class DebugCommands
 		}
 
 		var target = Game.ActiveScene.GetAllComponents<Player>()
-			.FirstOrDefault( p => p.Network.OwnerConnection?.DisplayName == connectionDisplayName );
+			.FirstOrDefault( p => p.Network.Owner?.DisplayName == connectionDisplayName );
 
 		if ( target is null )
 		{
@@ -51,7 +51,7 @@ public static class DebugCommands
 	public static void VentSelf()
 	{
 		var localPlayer = Game.ActiveScene?.GetAllComponents<Player>()
-			.FirstOrDefault( p => p.Network.OwnerConnection == Connection.Local );
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
 
 		if ( localPlayer is null )
 		{

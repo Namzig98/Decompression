@@ -16,8 +16,6 @@ public sealed class Corpse : Component
 
 	protected override void OnStart()
 	{
-		// Defensive: if the [Property] reference didn't survive Clone(), find
-		// the ModelPhysics on this GameObject ourselves.
 		if ( Physics is null )
 		{
 			Physics = Components.Get<ModelPhysics>( includeDisabled: true );
@@ -36,18 +34,11 @@ public sealed class Corpse : Component
 	// cause-specific configuration once and stop.
 	private void TryConfigurePhysics()
 	{
-		if ( Physics?.PhysicsGroup is null ) return;
-
-		var hasBodies = false;
-		foreach ( var _ in Physics.PhysicsGroup.Bodies )
-		{
-			hasBodies = true;
-			break;
-		}
-		if ( !hasBodies ) return;
+		if ( Physics is null ) return;
 
 		var bodyCount = 0;
-		foreach ( var _ in Physics.PhysicsGroup.Bodies ) bodyCount++;
+		foreach ( var _ in Physics.Bodies ) bodyCount++;
+		if ( bodyCount == 0 ) return;
 
 		if ( Cause == DeathCause.Decompression )
 		{
@@ -69,12 +60,12 @@ public sealed class Corpse : Component
 
 	private void ConfigureVacuumPhysics()
 	{
-		if ( Physics?.PhysicsGroup is null ) return;
-		foreach ( var body in Physics.PhysicsGroup.Bodies )
+		if ( Physics is null ) return;
+		foreach ( var body in Physics.Bodies )
 		{
 			body.GravityEnabled = false;
-			body.LinearDrag = 0.05f;
-			body.AngularDrag = 0.05f;
+			body.LinearDamping = 0.05f;
+			body.AngularDamping = 0.05f;
 		}
 	}
 
@@ -85,10 +76,10 @@ public sealed class Corpse : Component
 
 	private void ApplyVacuumImpulse()
 	{
-		if ( Physics?.PhysicsGroup is null ) return;
+		if ( Physics is null ) return;
 
 		const float impulseStrength = 600f;
-		foreach ( var body in Physics.PhysicsGroup.Bodies )
+		foreach ( var body in Physics.Bodies )
 		{
 			var offset = body.Position - SourcePosition;
 			var direction = offset.LengthSquared > 0.0001f
