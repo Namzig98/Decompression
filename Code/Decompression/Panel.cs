@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Sandbox;
 
 namespace Decompression;
@@ -55,5 +56,55 @@ public sealed class Panel : Component, Component.IPressable
 			?? go.Root?.Components.Get<Player>( includeDisabled: true );
 	}
 
-	// Host-side timer + saboteur validity check + glow render — Task 16.
+	protected override void OnUpdate()
+	{
+		UpdateGlow();
+
+		if ( !Networking.IsHost ) return;
+		if ( HackingConnectionId == Guid.Empty ) return;
+
+		// Defense in depth: drop the hack if the hacker is no longer connected,
+		// no longer a saboteur, or the target section is no longer Idle.
+		if ( !IsHackerStillValid() )
+		{
+			HackingConnectionId = Guid.Empty;
+			return;
+		}
+
+		if ( TargetSection is not null && TargetSection.State != VentingState.Idle )
+		{
+			HackingConnectionId = Guid.Empty;
+			return;
+		}
+
+		if ( Time.Now - HackStartTime >= HoldDuration )
+		{
+			HackingConnectionId = Guid.Empty;
+			TargetSection?.RequestVent();
+		}
+	}
+
+	private bool IsHackerStillValid()
+	{
+		if ( !Connection.All.Any( c => c.Id == HackingConnectionId ) ) return false;
+
+		var hackerPlayer = Game.ActiveScene?
+			.GetAllComponents<Player>()
+			.FirstOrDefault( p => p.Network.Owner?.Id == HackingConnectionId );
+
+		return hackerPlayer is not null && hackerPlayer.IsSaboteur;
+	}
+
+	private void UpdateGlow()
+	{
+		if ( GlowRenderer is null ) return;
+
+		float progress = 0f;
+		if ( HackingConnectionId != Guid.Empty )
+		{
+			progress = Math.Clamp( (Time.Now - HackStartTime) / HoldDuration, 0f, 1f );
+		}
+
+		GlowRenderer.Tint = new Color( 1f, 0f, 0f, progress );
+	}
 }
