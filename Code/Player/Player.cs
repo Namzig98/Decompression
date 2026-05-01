@@ -51,30 +51,16 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void BroadcastRespawn( Vector3 position, Rotation rotation )
 	{
-		// IsAlive is broadcast to every client so the local PlayerController
-		// re-enables and the model re-shows.
+		// DIAGNOSTIC: temporarily skip the position teleport to isolate
+		// whether the WorldPosition write is what's breaking client-to-client
+		// sync. If sync is restored, the teleport mechanism is the issue and
+		// we'll find an alternative. If still broken, the teleport isn't the
+		// cause.
 		IsAlive = true;
 
-		// Only the OWNER writes the transform. Physics is owner-authoritative;
-		// the owner's transform syncs naturally to all other clients via the
-		// Rigidbody network layer.
-		if ( !Network.IsOwner ) return;
-
-		// Lift 24u so the capsule starts above any floor geometry — small
-		// drop-in on respawn rather than risking sub-pixel overlap impulses.
-		var safePos = position + Vector3.Up * 24f;
-
-		// Clear lingering velocity so the player doesn't shoot off in
-		// whatever direction they were moving before the teleport.
-		var body = Components.Get<Rigidbody>();
-		if ( body is not null )
-		{
-			body.Velocity = Vector3.Zero;
-			body.AngularVelocity = Vector3.Zero;
-		}
-
-		WorldPosition = safePos;
-		WorldRotation = rotation;
+		// (position/rotation params are intentionally unused for this test)
+		_ = position;
+		_ = rotation;
 	}
 
 	public static event Action<Player, DeathCause> Died;
