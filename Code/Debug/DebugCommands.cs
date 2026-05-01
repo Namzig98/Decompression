@@ -58,6 +58,28 @@ public static class DebugCommands
 		CorpseCleanupSignal.RaiseGenericCleanup();
 	}
 
+	[ConCmd( "decompv2_set_saboteur" )]
+	public static void SetSaboteur( string connectionDisplayName, bool value )
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_set_saboteur: host only" );
+			return;
+		}
+
+		var target = Game.ActiveScene?.GetAllComponents<Player>()
+			.FirstOrDefault( p => p.Network.Owner?.DisplayName == connectionDisplayName );
+
+		if ( target is null )
+		{
+			Log.Warning( $"decompv2_set_saboteur: no player named '{connectionDisplayName}'" );
+			return;
+		}
+
+		target.SetSaboteur( value );
+		Log.Info( $"{connectionDisplayName}.IsSaboteur = {value}" );
+	}
+
 	[ConCmd( "decompv2_round_in_progress" )]
 	public static void SetRoundInProgress( bool value )
 	{
