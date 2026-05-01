@@ -5,7 +5,7 @@ using Sandbox;
 
 namespace Decompression;
 
-public sealed class Section : Component
+public sealed class Section : Component, Component.ITriggerListener
 {
 	[Property] public string DisplayName { get; set; } = "";
 	[Property] public Hatch Hatch { get; set; }
@@ -88,21 +88,21 @@ public sealed class Section : Component
 		occupants.Clear();
 	}
 
-	protected override void OnTriggerEnter( Collider other )
+	void Component.ITriggerListener.OnTriggerEnter( GameObject other )
 	{
 		if ( !Networking.IsHost ) return;
 
-		var player = ResolvePlayer( other?.GameObject );
+		var player = ResolvePlayer( other );
 		if ( player is null ) return;
 
 		occupants.Add( player );
 	}
 
-	protected override void OnTriggerExit( Collider other )
+	void Component.ITriggerListener.OnTriggerExit( GameObject other )
 	{
 		if ( !Networking.IsHost ) return;
 
-		var player = ResolvePlayer( other?.GameObject );
+		var player = ResolvePlayer( other );
 		if ( player is null ) return;
 
 		occupants.Remove( player );
