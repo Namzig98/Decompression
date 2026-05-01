@@ -43,14 +43,15 @@ public static class TaskAssigner
 		}
 
 		// Hand out tasks in round-robin order so under-supply is fairly
-		// distributed across crew.
+		// distributed across crew. AssignTo broadcasts the assignment to all
+		// clients (works around [Sync] propagation flakiness).
 		var index = 0;
 		for ( int i = 0; i < tasksPerCrew; i++ )
 		{
 			foreach ( var player in crew )
 			{
 				if ( index >= pool.Count ) return;
-				pool[index].AssignedConnectionId = player.OwnerConnectionId;
+				pool[index].AssignTo( player.OwnerConnectionId );
 				index++;
 			}
 		}

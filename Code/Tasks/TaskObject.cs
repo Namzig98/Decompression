@@ -28,30 +28,56 @@ public abstract class TaskObject : Component
 		}
 	}
 
-	[Rpc.Host]
+	// State transitions go through [Rpc.Broadcast] writers so they propagate
+	// reliably in editor multi-instance (where [Sync(SyncFlags.FromHost)]
+	// has been observed to be unreliable). Host-only entry points wrap them.
+
 	protected void MarkComplete()
 	{
 		if ( !Networking.IsHost ) return;
 		if ( IsCompleted ) return;
-		IsCompleted = true;
+		BroadcastCompleted();
 	}
 
-	[Rpc.Host]
 	public void Reset()
 	{
 		if ( !Networking.IsHost ) return;
-		AssignedConnectionId = Guid.Empty;
-		IsCompleted = false;
+		BroadcastReset();
 		OnReset();
 	}
 
 	// Public host-side completion entry point for debug tooling. Bypasses
 	// the gameplay-specific gating in subclasses — flips IsCompleted directly.
-	[Rpc.Host]
 	public void ForceComplete()
 	{
 		if ( !Networking.IsHost ) return;
+		BroadcastCompleted();
+	}
+
+	// Public host-side assignment entry point. TaskAssigner uses this.
+	public void AssignTo( Guid connectionId )
+	{
+		if ( !Networking.IsHost ) return;
+		BroadcastAssigned( connectionId );
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastAssigned( Guid connectionId )
+	{
+		AssignedConnectionId = connectionId;
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastCompleted()
+	{
 		IsCompleted = true;
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastReset()
+	{
+		AssignedConnectionId = Guid.Empty;
+		IsCompleted = false;
 	}
 
 	protected virtual void OnReset() { }
