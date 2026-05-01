@@ -1,0 +1,49 @@
+.results {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	background-color: rgba(0, 0, 0, 0.75);
+	pointer-events: none;
+}
+
+.results.sab .winner-banner {
+	color: #ff4444;
+}
+
+.results.crew .winner-banner {
+	color: #44aaff;
+}
+
+.winner-banner {
+	font-family: monospace;
+	font-size: 72px;
+	letter-spacing: 16px;
+	margin-bottom: 16px;
+}
+
+.reason {
+	font-family: monospace;
+	font-size: 28px;
+	color: #cccccc;
+	margin-bottom: 48px;
+}
+
+.reveal {
+	font-family: monospace;
+	color: #aaaaaa;
+}
+
+.reveal-title {
+	font-size: 18px;
+	letter-spacing: 4px;
+	margin-bottom: 8px;
+}
+
+.reveal-list {
+	font-size: 24px;
+	color: #ff8888;
+}

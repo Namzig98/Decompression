@@ -1,0 +1,59 @@
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showOverlay )
+	{
+		<div class="results @resultsClass">
+			<div class="winner-banner">@winnerText</div>
+			<div class="reason">@reasonText</div>
+			<div class="reveal">
+				<div class="reveal-title">SABOTEUR(S):</div>
+				<div class="reveal-list">@saboteurList</div>
+			</div>
+		</div>
+	}
+</root>
+
+@code {
+	bool showOverlay;
+	string winnerText = "";
+	string reasonText = "";
+	string saboteurList = "";
+	string resultsClass = "";
+
+	protected override void OnUpdate()
+	{
+		var match = Decompression.Match.Current;
+		if ( match is null || match.State != Decompression.MatchState.RoundEnd )
+		{
+			showOverlay = false;
+			return;
+		}
+		showOverlay = true;
+
+		winnerText = match.LastOutcome switch
+		{
+			Decompression.MatchOutcome.Crew => "CREW WINS",
+			Decompression.MatchOutcome.Saboteur => "SABOTEUR WINS",
+			_ => "ROUND OVER",
+		};
+		resultsClass = match.LastOutcome == Decompression.MatchOutcome.Saboteur ? "sab" : "crew";
+		reasonText = match.LastOutcomeReason ?? "";
+
+		var saboteurs = Game.ActiveScene?
+			.GetAllComponents<Decompression.Player>()
+			.Where( p => p.IsSaboteur )
+			.Select( p => p.Network.Owner?.DisplayName ?? "?" )
+			.ToList();
+
+		saboteurList = saboteurs is null || saboteurs.Count == 0
+			? "(none)"
+			: string.Join( ", ", saboteurs );
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showOverlay, winnerText, reasonText, saboteurList );
+}
