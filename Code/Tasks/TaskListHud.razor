@@ -1,0 +1,72 @@
+@using System.Collections.Generic;
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showList )
+	{
+		<div class="task-list">
+			<div class="task-list-title">TASKS</div>
+			@foreach ( var entry in entries )
+			{
+				<div class="task-entry @(entry.Done ? "done" : "")">
+					<span class="task-location">[@entry.Location]</span>
+					<span class="task-name">@entry.Name</span>
+				</div>
+			}
+		</div>
+	}
+</root>
+
+@code {
+	private record struct TaskEntry( string Location, string Name, bool Done );
+
+	private bool showList;
+	private List<TaskEntry> entries = new();
+
+	protected override void OnUpdate()
+	{
+		var match = Decompression.Match.Current;
+		if ( match is null || match.State != MatchState.Round )
+		{
+			showList = false;
+			return;
+		}
+
+		var localId = Connection.Local?.Id ?? System.Guid.Empty;
+		if ( localId == System.Guid.Empty )
+		{
+			showList = false;
+			return;
+		}
+
+		var myTasks = Game.ActiveScene?
+			.GetAllComponents<Decompression.TaskObject>()
+			.Where( t => t.AssignedConnectionId == localId )
+			.ToList();
+
+		if ( myTasks is null || myTasks.Count == 0 )
+		{
+			showList = false;
+			return;
+		}
+
+		showList = true;
+		entries = myTasks
+			.Select( t => new TaskEntry( t.LocationLabel, t.DisplayName, t.IsCompleted ) )
+			.ToList();
+	}
+
+	protected override int BuildHash()
+	{
+		var hash = entries.Count;
+		foreach ( var e in entries )
+		{
+			hash = System.HashCode.Combine( hash, e.Done );
+		}
+		return System.HashCode.Combine( hash, showList );
+	}
+}

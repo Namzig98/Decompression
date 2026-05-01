@@ -1,0 +1,54 @@
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showOutline )
+	{
+		<div class="hover-prompt">
+			<div class="prompt-text">[E] @hoveredName</div>
+		</div>
+	}
+</root>
+
+@code {
+	private bool showOutline;
+	private string hoveredName = "";
+
+	protected override void OnUpdate()
+	{
+		showOutline = false;
+
+		var match = Decompression.Match.Current;
+		if ( match is null || match.State != MatchState.Round ) return;
+
+		var camera = Game.ActiveScene?
+			.GetAllComponents<CameraComponent>()
+			.FirstOrDefault( c => c.IsMainCamera );
+		if ( camera is null ) return;
+
+		// Trace forward from camera at the player's typical interact reach.
+		const float reach = 150f;
+		var origin = camera.WorldPosition;
+		var direction = camera.WorldRotation.Forward;
+		var trace = Game.ActiveScene.Trace
+			.Ray( origin, origin + direction * reach )
+			.Run();
+
+		if ( !trace.Hit || trace.GameObject is null ) return;
+
+		var task = trace.GameObject.Components.Get<Decompression.TaskObject>( includeDisabled: true )
+			?? trace.GameObject.Root?.Components.Get<Decompression.TaskObject>( includeDisabled: true );
+
+		if ( task is null ) return;
+		if ( !task.IsAssignedToLocal ) return;
+		if ( task.IsCompleted ) return;
+
+		showOutline = true;
+		hoveredName = $"{task.LocationLabel} — {task.DisplayName}";
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showOutline, hoveredName );
+}
