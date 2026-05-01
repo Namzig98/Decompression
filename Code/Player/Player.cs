@@ -56,31 +56,25 @@ public sealed class Player : Component
 		IsAlive = true;
 
 		// Only the OWNER writes the transform. Physics is owner-authoritative;
-		// non-owner writes briefly set a position, then race with the next
-		// sync from the owner — that race plus rigidbody settling was
-		// occasionally producing the "fling into the air" artifact.
+		// the owner's transform syncs naturally to all other clients via the
+		// Rigidbody network layer.
 		if ( !Network.IsOwner ) return;
 
-		// Lift 24u so the capsule starts well above any floor geometry —
-		// even with physics disabled, sub-pixel overlap on re-enable can
-		// generate a separation impulse.
+		// Lift 24u so the capsule starts above any floor geometry — small
+		// drop-in on respawn rather than risking sub-pixel overlap impulses.
 		var safePos = position + Vector3.Up * 24f;
 
+		// Clear lingering velocity so the player doesn't shoot off in
+		// whatever direction they were moving before the teleport.
 		var body = Components.Get<Rigidbody>();
-		if ( body is not null )
-		{
-			body.MotionEnabled = false;
-		}
-
-		WorldPosition = safePos;
-		WorldRotation = rotation;
-
 		if ( body is not null )
 		{
 			body.Velocity = Vector3.Zero;
 			body.AngularVelocity = Vector3.Zero;
-			body.MotionEnabled = true;
 		}
+
+		WorldPosition = safePos;
+		WorldRotation = rotation;
 	}
 
 	public static event Action<Player, DeathCause> Died;
