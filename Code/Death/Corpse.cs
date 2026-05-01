@@ -100,15 +100,18 @@ public sealed class Corpse : Component
 	{
 		// Bodies get sucked TOWARD the hatch (the breach is the low-pressure
 		// outlet) and carry momentum through it into space. Direction is from
-		// the body's position toward the hatch.
+		// the body's position toward the hatch, with a small upward bias so
+		// the ragdoll arcs off the floor instead of dragging legs through it.
 		const float impulseStrength = 600f;
+		const float upwardBias = 0.3f;
 		foreach ( var rb in rigidbodies )
 		{
 			var pos = rb.WorldPosition;
 			var offset = SourcePosition - pos;
-			var direction = offset.LengthSquared > 0.0001f
+			var rawDirection = offset.LengthSquared > 0.0001f
 				? offset.Normal
 				: Vector3.Random.Normal;
+			var direction = (rawDirection + Vector3.Up * upwardBias).Normal;
 
 			var mass = rb.PhysicsBody?.Mass ?? 1f;
 			rb.ApplyImpulse( direction * impulseStrength * mass );
