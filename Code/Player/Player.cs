@@ -36,20 +36,33 @@ public sealed class Player : Component
 	//      through the normal owner-authoritative physics sync — non-owner
 	//      writes briefly set a position then get reconciled on the next
 	//      sync tick from the owner.
-	// Host-only respawn: set IsAlive via host write only, no [Rpc.Broadcast].
-	// Player state writes from non-host clients (even on their local-only
-	// instance) appear to disrupt the network sync of player position from
-	// the owner to other peers — clients lose visibility of each other after
-	// such writes. Trust [Sync(SyncFlags.FromHost)] to propagate IsAlive.
+	// Host-only respawn: set IsAlive via host [Sync] write, then route an
+	// [Rpc.Owner] to the owning client to do the actual transform teleport
+	// (owner-authoritative). No [Rpc.Broadcast] on the Player — those
+	// disrupted client-to-client sync in testing.
 	public void RespawnForNewRound( Vector3 position, Rotation rotation )
 	{
 		if ( !Networking.IsHost ) return;
 		IsAlive = true;
+		TeleportToSpawn( position, rotation );
+	}
 
-		// position/rotation params are intentionally unused while we
-		// diagnose sync. Re-add a sync-safe teleport mechanism after.
-		_ = position;
-		_ = rotation;
+	[Rpc.Owner]
+	private void TeleportToSpawn( Vector3 position, Rotation rotation )
+	{
+		// Owner-only execution. Lift slightly above ground to avoid
+		// sub-pixel overlap with floor geometry.
+		var safePos = position + Vector3.Up * 24f;
+
+		var body = Components.Get<Rigidbody>();
+		if ( body is not null )
+		{
+			body.Velocity = Vector3.Zero;
+			body.AngularVelocity = Vector3.Zero;
+		}
+
+		WorldPosition = safePos;
+		WorldRotation = rotation;
 	}
 
 	public static event Action<Player, DeathCause> Died;
