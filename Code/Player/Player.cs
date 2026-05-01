@@ -15,18 +15,15 @@ public sealed class Player : Component
 	[Sync( SyncFlags.FromHost )] public Guid OwnerConnectionId { get; set; }
 	[Sync( SyncFlags.FromHost )] public bool IsSaboteur { get; private set; }
 
-	// Host-only entry point. Routes through a broadcast so every client's
-	// local IsSaboteur flag is updated reliably (works around [Sync] not
-	// propagating consistently for our scene-static / replicated objects).
+	// DIAGNOSTIC: revert to host-only [Sync] write, no broadcast. Tests
+	// whether the per-player BroadcastIsSaboteur was disrupting client→
+	// client position sync. Saboteurs may not see their local role with
+	// this version, but Panel.BeginHack already validates host-side, so
+	// the gameplay still works — only the visual role display might be
+	// off on non-host clients during this test.
 	public void SetSaboteur( bool value )
 	{
 		if ( !Networking.IsHost ) return;
-		BroadcastIsSaboteur( value );
-	}
-
-	[Rpc.Broadcast]
-	private void BroadcastIsSaboteur( bool value )
-	{
 		IsSaboteur = value;
 	}
 
