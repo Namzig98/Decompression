@@ -1,0 +1,58 @@
+using System;
+using System.Linq;
+using Sandbox;
+
+namespace Decompression;
+
+public sealed class Match : Component
+{
+	[Property] public PlayerSpawner PlayerSpawner { get; set; }
+
+	[Property] public float LobbyAutoStartSeconds { get; set; } = 30f;
+	[Property] public float RoundDuration { get; set; } = 480f;       // 8 minutes
+	[Property] public float RoundEndDuration { get; set; } = 10f;
+	[Property] public int MinPlayersToStart { get; set; } = 3;        // 4 recommended
+	[Property] public int SaboteurCountOverride { get; set; } = 0;    // 0 = auto-scale
+
+	[Sync( SyncFlags.FromHost )] public MatchState State { get; private set; } = MatchState.Lobby;
+	[Sync( SyncFlags.FromHost )] public float StateEnteredAt { get; private set; }
+	[Sync( SyncFlags.FromHost )] public MatchOutcome LastOutcome { get; private set; }
+	[Sync( SyncFlags.FromHost )] public string LastOutcomeReason { get; private set; } = "";
+
+	public static event Action<Match, bool /* localIsSaboteur */> RoundStarted;
+	public static event Action<Match, MatchOutcome, string> RoundEnded;
+
+	// Convenience accessor for any subsystem to find the active match.
+	public static Match Current => Game.ActiveScene?.GetAllComponents<Match>().FirstOrDefault();
+
+	[Rpc.Host]
+	public void StartRound()
+	{
+		if ( State != MatchState.Lobby ) return;
+		EnterRound();
+	}
+
+	[Rpc.Host]
+	public void EndRound( MatchOutcome winner, string reason )
+	{
+		if ( State != MatchState.Round ) return;
+		EnterRoundEnd( winner, reason );
+	}
+
+	public float SecondsLeftInState()
+	{
+		var elapsed = Time.Now - StateEnteredAt;
+		return State switch
+		{
+			MatchState.Lobby => Math.Max( 0f, LobbyAutoStartSeconds - elapsed ),
+			MatchState.Round => Math.Max( 0f, RoundDuration - elapsed ),
+			MatchState.RoundEnd => Math.Max( 0f, RoundEndDuration - elapsed ),
+			_ => 0f,
+		};
+	}
+
+	// Filled in by Tasks 5-8.
+	private void EnterRound() { }
+	private void EnterRoundEnd( MatchOutcome winner, string reason ) { }
+	private void EnterLobby() { }
+}
