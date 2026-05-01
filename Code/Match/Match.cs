@@ -108,6 +108,8 @@ public sealed class Match : Component
 		// C2 (tasks complete) and C3 (saboteurs voted out) call EndRound directly.
 	}
 
+	private TimeSince timeSinceLobbyBroadcast = 9999f;
+
 	private void TickLobby()
 	{
 		var playerCount = Game.ActiveScene?.GetAllComponents<Player>().Count() ?? 0;
@@ -116,12 +118,21 @@ public sealed class Match : Component
 		{
 			// Hold the countdown at full duration while we wait for more players.
 			StateEnteredAt = Time.Now;
+		}
+		else if ( SecondsLeftInState() <= 0f )
+		{
+			EnterRound();
 			return;
 		}
 
-		if ( SecondsLeftInState() <= 0f )
+		// Heartbeat: re-broadcast lobby state ~once per second so newly-
+		// connected clients receive the correct StateEnteredAt without
+		// waiting for the next explicit transition. Round/RoundEnd states
+		// don't need this — they always have a transition that broadcasts.
+		if ( timeSinceLobbyBroadcast >= 1f )
 		{
-			EnterRound();
+			BroadcastStateUpdate( State, StateEnteredAt, LastOutcome, LastOutcomeReason );
+			timeSinceLobbyBroadcast = 0f;
 		}
 	}
 
