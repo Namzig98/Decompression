@@ -34,9 +34,23 @@
 		const float reach = 150f;
 		var origin = camera.WorldPosition;
 		var direction = camera.WorldRotation.Forward;
-		var trace = Game.ActiveScene.Trace
-			.Ray( origin, origin + direction * reach )
-			.Run();
+
+		// Find the local player's GameObject so we can exclude it from the
+		// trace — otherwise the camera-forward ray starts inside the player's
+		// own collider and hits "self" before reaching any task.
+		var localPlayer = Game.ActiveScene
+			.GetAllComponents<Decompression.Player>()
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
+
+		var traceBuilder = Game.ActiveScene.Trace
+			.Ray( origin, origin + direction * reach );
+
+		if ( localPlayer is not null )
+		{
+			traceBuilder = traceBuilder.IgnoreGameObjectHierarchy( localPlayer.GameObject );
+		}
+
+		var trace = traceBuilder.Run();
 
 		// Diagnostic: log every ~0.5s what the trace is hitting + whether
 		// we found a TaskObject + whether it's assigned to local.
