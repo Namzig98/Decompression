@@ -10,8 +10,8 @@ public sealed class Player : Component
 	[Property] public SoundEvent DeathSoundDecompression { get; set; }
 	[Property] public SoundEvent DeathSoundGeneric { get; set; }
 
-	[Sync] public bool IsAlive { get; private set; } = true;
-	[Sync] public Guid OwnerConnectionId { get; set; }
+	[Sync( SyncFlags.FromHost )] public bool IsAlive { get; private set; } = true;
+	[Sync( SyncFlags.FromHost )] public Guid OwnerConnectionId { get; set; }
 
 	public static event Action<Player, DeathCause> Died;
 

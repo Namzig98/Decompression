@@ -7,10 +7,10 @@ namespace Decompression;
 
 public sealed class Corpse : Component
 {
-	[Sync] public DeathCause Cause { get; set; }
-	[Sync] public Vector3 SourcePosition { get; set; }
-	[Sync] public Guid OriginalOwnerConnectionId { get; set; }
-	[Sync] public bool ImpulseApplied { get; set; }
+	[Sync( SyncFlags.FromHost )] public DeathCause Cause { get; set; }
+	[Sync( SyncFlags.FromHost )] public Vector3 SourcePosition { get; set; }
+	[Sync( SyncFlags.FromHost )] public Guid OriginalOwnerConnectionId { get; set; }
+	[Sync( SyncFlags.FromHost )] public bool ImpulseApplied { get; set; }
 
 	[Property] public ModelPhysics Physics { get; set; }
 
