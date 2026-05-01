@@ -36,26 +36,18 @@ public sealed class Player : Component
 	//      through the normal owner-authoritative physics sync — non-owner
 	//      writes briefly set a position then get reconciled on the next
 	//      sync tick from the owner.
-	// Caller (Match) provides the spawn point so it can coordinate unique
-	// spawn assignments across all players (avoids two players spawning at
-	// the same point and colliding into each other).
+	// Host-only respawn: set IsAlive via host write only, no [Rpc.Broadcast].
+	// Player state writes from non-host clients (even on their local-only
+	// instance) appear to disrupt the network sync of player position from
+	// the owner to other peers — clients lose visibility of each other after
+	// such writes. Trust [Sync(SyncFlags.FromHost)] to propagate IsAlive.
 	public void RespawnForNewRound( Vector3 position, Rotation rotation )
 	{
 		if ( !Networking.IsHost ) return;
-		BroadcastRespawn( position, rotation );
-	}
-
-	[Rpc.Broadcast]
-	private void BroadcastRespawn( Vector3 position, Rotation rotation )
-	{
-		// DIAGNOSTIC: temporarily skip the position teleport to isolate
-		// whether the WorldPosition write is what's breaking client-to-client
-		// sync. If sync is restored, the teleport mechanism is the issue and
-		// we'll find an alternative. If still broken, the teleport isn't the
-		// cause.
 		IsAlive = true;
 
-		// (position/rotation params are intentionally unused for this test)
+		// position/rotation params are intentionally unused while we
+		// diagnose sync. Re-add a sync-safe teleport mechanism after.
 		_ = position;
 		_ = rotation;
 	}
