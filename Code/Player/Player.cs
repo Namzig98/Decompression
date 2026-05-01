@@ -12,6 +12,13 @@ public sealed class Player : Component
 
 	[Sync( SyncFlags.FromHost )] public bool IsAlive { get; private set; } = true;
 	[Sync( SyncFlags.FromHost )] public Guid OwnerConnectionId { get; set; }
+	[Sync( SyncFlags.FromHost )] public bool IsSaboteur { get; private set; }
+
+	[Rpc.Host]
+	public void SetSaboteur( bool value )
+	{
+		IsSaboteur = value;
+	}
 
 	public static event Action<Player, DeathCause> Died;
 
