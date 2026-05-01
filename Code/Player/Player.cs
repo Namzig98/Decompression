@@ -46,15 +46,24 @@ public sealed class Player : Component
 		var spawner = Game.ActiveScene?.GetAllComponents<PlayerSpawner>().FirstOrDefault();
 		Vector3 spawnPos = WorldPosition;
 		Rotation spawnRot = WorldRotation;
-		if ( spawner is not null && spawner.SpawnPoints.Count > 0 )
+
+		if ( spawner is not null && spawner.SpawnPoints is not null && spawner.SpawnPoints.Count > 0 )
 		{
 			var pick = spawner.SpawnPoints[Game.Random.Int( 0, spawner.SpawnPoints.Count - 1 )];
-			spawnPos = pick.WorldPosition;
-			spawnRot = pick.WorldRotation;
+			if ( pick is not null )
+			{
+				spawnPos = pick.WorldPosition;
+				spawnRot = pick.WorldRotation;
+				Log.Info( $"RespawnForNewRound[{Network.Owner?.DisplayName ?? "?"}]: picked '{pick.Name}' @ {spawnPos}" );
+			}
+			else
+			{
+				Log.Warning( $"RespawnForNewRound: SpawnPoints[{Game.Random.Int( 0, spawner.SpawnPoints.Count - 1 )}] was null" );
+			}
 		}
 		else
 		{
-			Log.Warning( "Player.RespawnForNewRound: no PlayerSpawner or SpawnPoints in scene" );
+			Log.Warning( $"RespawnForNewRound: spawner={(spawner is null ? "null" : "ok")}, spawnPoints.Count={spawner?.SpawnPoints?.Count ?? -1} — keeping current position" );
 		}
 
 		BroadcastRespawn( spawnPos, spawnRot );
@@ -63,9 +72,18 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void BroadcastRespawn( Vector3 position, Rotation rotation )
 	{
+		Log.Info( $"BroadcastRespawn[{Network.Owner?.DisplayName ?? "?"}]: setting position={position}" );
 		IsAlive = true;
 		WorldPosition = position;
 		WorldRotation = rotation;
+
+		// Clear any momentum that would fight the teleport.
+		var body = Components.Get<Rigidbody>();
+		if ( body is not null )
+		{
+			body.Velocity = Vector3.Zero;
+			body.AngularVelocity = Vector3.Zero;
+		}
 	}
 
 	public static event Action<Player, DeathCause> Died;
