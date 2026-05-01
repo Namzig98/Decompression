@@ -119,6 +119,62 @@ public static class DebugCommands
 		section.RequestVent();
 	}
 
+	[ConCmd( "decompv2_start_round" )]
+	public static void StartRound()
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_start_round: host only" );
+			return;
+		}
+		var match = Match.Current;
+		if ( match is null )
+		{
+			Log.Warning( "decompv2_start_round: no Match component in scene" );
+			return;
+		}
+		match.StartRound();
+	}
+
+	[ConCmd( "decompv2_end_round" )]
+	public static void EndRound( string winner )
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_end_round: host only" );
+			return;
+		}
+		if ( !System.Enum.TryParse<MatchOutcome>( winner, ignoreCase: true, out var outcome )
+			|| outcome == MatchOutcome.None )
+		{
+			Log.Warning( "decompv2_end_round: winner must be 'Crew' or 'Saboteur'" );
+			return;
+		}
+		var match = Match.Current;
+		if ( match is null )
+		{
+			Log.Warning( "decompv2_end_round: no Match component in scene" );
+			return;
+		}
+		match.EndRound( outcome, "debug command" );
+	}
+
+	[ConCmd( "decompv2_match_state" )]
+	public static void MatchState()
+	{
+		var match = Match.Current;
+		if ( match is null )
+		{
+			Log.Warning( "decompv2_match_state: no Match component in scene" );
+			return;
+		}
+		Log.Info( $"Match state: {match.State}, " +
+			$"timeInState={Time.Now - match.StateEnteredAt:F1}s, " +
+			$"secondsLeft={match.SecondsLeftInState():F1}, " +
+			$"lastOutcome={match.LastOutcome}, " +
+			$"lastReason='{match.LastOutcomeReason}'" );
+	}
+
 	[ConCmd( "decompv2_set_saboteur" )]
 	public static void SetSaboteur( string connectionDisplayName, bool value )
 	{
