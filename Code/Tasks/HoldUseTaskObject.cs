@@ -21,6 +21,9 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 
 	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
+		// DIAGNOSTIC: confirm Press is firing.
+		Log.Info( $"HoldUseTaskObject.Press fired on '{DisplayName}' by source={e.Source?.GameObject.Name ?? "null"}" );
+
 		// Always route to host. Host validates and decides whether the hold
 		// counts (assigned crew = real, others = visual-only fake).
 		BeginHold();
