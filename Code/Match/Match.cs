@@ -169,15 +169,10 @@ public sealed class Match : Component
 		var saboteurCount = RoleAssigner.ResolveSaboteurCount( allPlayers.Count, SaboteurCountOverride );
 		var saboteurIds = RoleAssigner.Assign( allPlayers, saboteurCount );
 
-		// 6. Update synced state.
-		State = MatchState.Round;
-		StateEnteredAt = Time.Now;
-		LastOutcome = MatchOutcome.None;
-		LastOutcomeReason = "";
+		// 6. Update synced state — broadcast to all clients (host included).
+		BroadcastStateUpdate( MatchState.Round, Time.Now, MatchOutcome.None, "" );
 
-		// 7. Broadcast to every client with the saboteur IDs in the payload.
-		//    Race-free role reveal: clients read role from payload, not from
-		//    Player.IsSaboteur (which may not have synced yet).
+		// 7. Broadcast role reveal with the saboteur IDs in the payload.
 		OnRoundStarted( saboteurIds );
 	}
 
@@ -194,17 +189,13 @@ public sealed class Match : Component
 	{
 		if ( !Networking.IsHost ) return;
 
-		State = MatchState.RoundEnd;
-		StateEnteredAt = Time.Now;
-		LastOutcome = winner;
-		LastOutcomeReason = reason ?? "";
-
 		// IsSaboteur intentionally NOT cleared — the RoundEndOverlay reads
 		// IsSaboteur to display who the saboteurs were.
 		// PlayerSpawner.RoundInProgress stays true so late joiners during
 		// RoundEnd still spawn as spectators.
 
-		OnRoundEnded( winner, LastOutcomeReason );
+		BroadcastStateUpdate( MatchState.RoundEnd, Time.Now, winner, reason ?? "" );
+		OnRoundEnded( winner, reason ?? "" );
 	}
 
 	[Rpc.Broadcast]
@@ -248,8 +239,18 @@ public sealed class Match : Component
 			PlayerSpawner.RoundInProgress = false;
 		}
 
-		// 5. Update synced state.
-		State = MatchState.Lobby;
-		StateEnteredAt = Time.Now;
+		// 5. Update synced state — broadcast to all clients.
+		BroadcastStateUpdate( MatchState.Lobby, Time.Now, LastOutcome, LastOutcomeReason );
+	}
+
+	// Updates the [Sync] state on every client (host included). Works around
+	// scene-static [Sync] not propagating reliably from the host's writes.
+	[Rpc.Broadcast]
+	private void BroadcastStateUpdate( MatchState state, float enteredAt, MatchOutcome outcome, string reason )
+	{
+		State = state;
+		StateEnteredAt = enteredAt;
+		LastOutcome = outcome;
+		LastOutcomeReason = reason ?? "";
 	}
 }
