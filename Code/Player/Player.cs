@@ -23,6 +23,11 @@ public sealed class Player : Component
 
 	// Reset this player's IsAlive flag to true and teleport them to a spawn
 	// point. Used by Match (C1) at round start and round end.
+	//
+	// Two-step: host writes the host-authoritative IsAlive flag, then routes
+	// an [Rpc.Owner] to the owning client so the transform write is
+	// owner-authoritative (player is the owner of their own physics body —
+	// host writing to it directly causes desyncs).
 	[Rpc.Host]
 	public void RespawnForNewRound()
 	{
@@ -30,11 +35,23 @@ public sealed class Player : Component
 		IsAlive = true;
 
 		var spawner = Game.ActiveScene?.GetAllComponents<PlayerSpawner>().FirstOrDefault();
+		Vector3 spawnPos = WorldPosition;
+		Rotation spawnRot = WorldRotation;
 		if ( spawner is not null && spawner.SpawnPoints.Count > 0 )
 		{
 			var pick = spawner.SpawnPoints[Game.Random.Int( 0, spawner.SpawnPoints.Count - 1 )];
-			WorldTransform = pick.WorldTransform;
+			spawnPos = pick.WorldPosition;
+			spawnRot = pick.WorldRotation;
 		}
+
+		TeleportToSpawn( spawnPos, spawnRot );
+	}
+
+	[Rpc.Owner]
+	private void TeleportToSpawn( Vector3 position, Rotation rotation )
+	{
+		WorldPosition = position;
+		WorldRotation = rotation;
 	}
 
 	public static event Action<Player, DeathCause> Died;

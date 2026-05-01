@@ -60,6 +60,22 @@ public sealed class Spectator : Component
 
 	protected override void OnUpdate()
 	{
+		// If the local player is alive, the Spectator should not be running —
+		// PlayerController owns the camera. This handles the round-restart
+		// case where the player respawns alive but Spectator hasn't been
+		// reset by anyone else.
+		var owner = Components.Get<Player>();
+		if ( owner is not null && owner.IsAlive )
+		{
+			if ( CurrentPhase != Phase.Inactive )
+			{
+				CurrentPhase = Phase.Inactive;
+				LockedCorpse = null;
+				followedPlayer = null;
+			}
+			return;
+		}
+
 		switch ( CurrentPhase )
 		{
 			case Phase.CorpseLock:
