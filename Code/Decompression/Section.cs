@@ -28,6 +28,18 @@ public sealed class Section : Component
 		EnterState( VentingState.Warning );
 	}
 
+	// Force the section back to a fresh Idle state. Called by Match (C1) at
+	// round start and round end so vented sections from the prior round are
+	// reset before the next round begins.
+	[Rpc.Host]
+	public void Reset()
+	{
+		if ( !Networking.IsHost ) return;
+		State = VentingState.Idle;
+		StateEnteredAt = Time.Now;
+		occupants.Clear();
+	}
+
 	private void EnterState( VentingState next )
 	{
 		var prev = State;
