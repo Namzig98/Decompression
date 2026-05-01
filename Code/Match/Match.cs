@@ -51,7 +51,44 @@ public sealed class Match : Component
 		};
 	}
 
-	// Filled in by Tasks 5-8.
+	protected override void OnUpdate()
+	{
+		if ( !Networking.IsHost ) return;
+
+		switch ( State )
+		{
+			case MatchState.Lobby:
+				TickLobby();
+				break;
+
+			case MatchState.Round:
+				// Win-condition checks added in Task 8.
+				break;
+
+			case MatchState.RoundEnd:
+				if ( SecondsLeftInState() <= 0f ) EnterLobby();
+				break;
+		}
+	}
+
+	private void TickLobby()
+	{
+		var playerCount = Game.ActiveScene?.GetAllComponents<Player>().Count() ?? 0;
+
+		if ( playerCount < MinPlayersToStart )
+		{
+			// Hold the countdown at full duration while we wait for more players.
+			StateEnteredAt = Time.Now;
+			return;
+		}
+
+		if ( SecondsLeftInState() <= 0f )
+		{
+			EnterRound();
+		}
+	}
+
+	// Filled in by Tasks 6-7.
 	private void EnterRound() { }
 	private void EnterRoundEnd( MatchOutcome winner, string reason ) { }
 	private void EnterLobby() { }
