@@ -51,20 +51,28 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void BroadcastRespawn( Vector3 position, Rotation rotation )
 	{
+		// IsAlive is broadcast to every client so the local PlayerController
+		// re-enables and the model re-shows.
 		IsAlive = true;
 
-		// Disable physics during the teleport so no impulse is generated from
-		// the position delta or any momentary overlap. Re-enable + clear
-		// velocity afterward.
+		// Only the OWNER writes the transform. Physics is owner-authoritative;
+		// non-owner writes briefly set a position, then race with the next
+		// sync from the owner — that race plus rigidbody settling was
+		// occasionally producing the "fling into the air" artifact.
+		if ( !Network.IsOwner ) return;
+
+		// Lift 24u so the capsule starts well above any floor geometry —
+		// even with physics disabled, sub-pixel overlap on re-enable can
+		// generate a separation impulse.
+		var safePos = position + Vector3.Up * 24f;
+
 		var body = Components.Get<Rigidbody>();
 		if ( body is not null )
 		{
 			body.MotionEnabled = false;
 		}
 
-		// Lift the spawn slightly so the capsule doesn't initialize with
-		// sub-pixel overlap into floor geometry.
-		WorldPosition = position + Vector3.Up * 8f;
+		WorldPosition = safePos;
 		WorldRotation = rotation;
 
 		if ( body is not null )
