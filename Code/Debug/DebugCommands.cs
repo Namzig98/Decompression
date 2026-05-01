@@ -58,6 +58,27 @@ public static class DebugCommands
 		CorpseCleanupSignal.RaiseGenericCleanup();
 	}
 
+	[ConCmd( "decompv2_request_vent" )]
+	public static void RequestVent( string sectionDisplayName )
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_request_vent: host only" );
+			return;
+		}
+
+		var section = Game.ActiveScene?.GetAllComponents<Section>()
+			.FirstOrDefault( s => s.DisplayName == sectionDisplayName );
+
+		if ( section is null )
+		{
+			Log.Warning( $"decompv2_request_vent: no section named '{sectionDisplayName}'" );
+			return;
+		}
+
+		section.RequestVent();
+	}
+
 	[ConCmd( "decompv2_set_saboteur" )]
 	public static void SetSaboteur( string connectionDisplayName, bool value )
 	{
