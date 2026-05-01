@@ -153,7 +153,66 @@ public sealed class Match : Component
 		RoundStarted?.Invoke( this, localIsSaboteur );
 	}
 
-	// Filled in by Task 7.
-	private void EnterRoundEnd( MatchOutcome winner, string reason ) { }
-	private void EnterLobby() { }
+	private void EnterRoundEnd( MatchOutcome winner, string reason )
+	{
+		if ( !Networking.IsHost ) return;
+
+		State = MatchState.RoundEnd;
+		StateEnteredAt = Time.Now;
+		LastOutcome = winner;
+		LastOutcomeReason = reason ?? "";
+
+		// IsSaboteur intentionally NOT cleared — the RoundEndOverlay reads
+		// IsSaboteur to display who the saboteurs were.
+		// PlayerSpawner.RoundInProgress stays true so late joiners during
+		// RoundEnd still spawn as spectators.
+
+		OnRoundEnded( winner, LastOutcomeReason );
+	}
+
+	[Rpc.Broadcast]
+	private void OnRoundEnded( MatchOutcome winner, string reason )
+	{
+		RoundEnded?.Invoke( this, winner, reason );
+	}
+
+	private void EnterLobby()
+	{
+		if ( !Networking.IsHost ) return;
+
+		var scene = Game.ActiveScene;
+		if ( scene is null ) return;
+
+		var allPlayers = scene.GetAllComponents<Player>().ToList();
+
+		// 1. Clear roles for the next round.
+		RoleAssigner.ClearAll( allPlayers );
+
+		// 2. Respawn every player alive at a SpawnPoint.
+		foreach ( var p in allPlayers )
+		{
+			p.RespawnForNewRound();
+		}
+
+		// 3. Reset sections + clear corpses (anything left from RoundEnd).
+		foreach ( var section in scene.GetAllComponents<Section>() )
+		{
+			section.Reset();
+		}
+		CorpseCleanupSignal.RaiseGenericCleanup();
+		foreach ( var corpse in scene.GetAllComponents<Corpse>().ToList() )
+		{
+			corpse.Cleanup();
+		}
+
+		// 4. Late joiners now spawn alive again.
+		if ( PlayerSpawner is not null )
+		{
+			PlayerSpawner.RoundInProgress = false;
+		}
+
+		// 5. Update synced state.
+		State = MatchState.Lobby;
+		StateEnteredAt = Time.Now;
+	}
 }
