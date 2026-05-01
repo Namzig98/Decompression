@@ -72,18 +72,23 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void BroadcastRespawn( Vector3 position, Rotation rotation )
 	{
-		Log.Info( $"BroadcastRespawn[{Network.Owner?.DisplayName ?? "?"}]: setting position={position}" );
+		var owner = Network.Owner?.DisplayName ?? "?";
+		Log.Info( $"BroadcastRespawn[{owner}]: setting position={position}" );
 		IsAlive = true;
-		WorldPosition = position;
-		WorldRotation = rotation;
 
-		// Clear any momentum that would fight the teleport.
+		// Set rigidbody position+velocity first; on dynamic bodies the GameObject
+		// transform follows the Rigidbody.
 		var body = Components.Get<Rigidbody>();
 		if ( body is not null )
 		{
 			body.Velocity = Vector3.Zero;
 			body.AngularVelocity = Vector3.Zero;
 		}
+
+		WorldPosition = position;
+		WorldRotation = rotation;
+
+		Log.Info( $"  After write[{owner}]: WorldPosition={WorldPosition}, IsHost={Networking.IsHost}, IsOwner={Network.IsOwner}" );
 	}
 
 	public static event Action<Player, DeathCause> Died;
