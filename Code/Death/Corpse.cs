@@ -98,11 +98,14 @@ public sealed class Corpse : Component
 
 	private void ApplyVacuumImpulse( List<Rigidbody> rigidbodies )
 	{
+		// Bodies get sucked TOWARD the hatch (the breach is the low-pressure
+		// outlet) and carry momentum through it into space. Direction is from
+		// the body's position toward the hatch.
 		const float impulseStrength = 600f;
 		foreach ( var rb in rigidbodies )
 		{
 			var pos = rb.WorldPosition;
-			var offset = pos - SourcePosition;
+			var offset = SourcePosition - pos;
 			var direction = offset.LengthSquared > 0.0001f
 				? offset.Normal
 				: Vector3.Random.Normal;
