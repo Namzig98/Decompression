@@ -1,0 +1,34 @@
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showTimer )
+	{
+		<div class="timer">@timerText</div>
+	}
+</root>
+
+@code {
+	bool showTimer;
+	string timerText = "";
+
+	protected override void OnUpdate()
+	{
+		var match = Decompression.Match.Current;
+		if ( match is null || match.State != Decompression.MatchState.Round )
+		{
+			showTimer = false;
+			return;
+		}
+		showTimer = true;
+
+		var seconds = (int)System.Math.Ceiling( match.SecondsLeftInState() );
+		var minutes = seconds / 60;
+		var s = seconds % 60;
+		timerText = $"{minutes}:{s:D2}";
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showTimer, timerText );
+}
