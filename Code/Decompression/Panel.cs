@@ -13,6 +13,9 @@ public sealed class Panel : Component, Component.IPressable
 	[Sync( SyncFlags.FromHost )] public Guid HackingConnectionId { get; set; }
 	[Sync( SyncFlags.FromHost )] public float HackStartTime { get; set; }
 
+	private Color initialTint;
+	private bool initialTintCaptured;
+
 	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
 		var player = ResolvePlayer( e.Source?.GameObject );
@@ -99,12 +102,20 @@ public sealed class Panel : Component, Component.IPressable
 	{
 		if ( GlowRenderer is null ) return;
 
+		// Capture the renderer's idle tint once on first update so the lerp
+		// can return to it cleanly when no hack is in progress.
+		if ( !initialTintCaptured )
+		{
+			initialTint = GlowRenderer.Tint;
+			initialTintCaptured = true;
+		}
+
 		float progress = 0f;
 		if ( HackingConnectionId != Guid.Empty )
 		{
 			progress = Math.Clamp( (Time.Now - HackStartTime) / HoldDuration, 0f, 1f );
 		}
 
-		GlowRenderer.Tint = new Color( 1f, 0f, 0f, progress );
+		GlowRenderer.Tint = Color.Lerp( initialTint, Color.Red, progress );
 	}
 }
