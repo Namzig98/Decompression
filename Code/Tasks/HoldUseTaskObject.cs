@@ -4,7 +4,7 @@ using Sandbox;
 
 namespace Decompression;
 
-public sealed class HoldUseTaskObject : TaskObject
+public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 {
 	[Property] public float HoldDuration { get; set; } = 3f;
 	[Property] public ModelRenderer GlowRenderer { get; set; }
@@ -19,18 +19,46 @@ public sealed class HoldUseTaskObject : TaskObject
 	private bool initialTintCaptured;
 	private Player cachedHolder;
 
-	// IPressable handlers + Begin/End RPCs added in Task 5.
-	// Host-side completion + validity checks added in Task 6.
-	// UpdateGlow added in Task 7.
-
-	protected override void OnReset()
+	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
-		// If a hold is in flight when the round resets, broadcast end so all
-		// clients clear their glow.
-		if ( Networking.IsHost && HoldingConnectionId != Guid.Empty )
-		{
-			BroadcastHoldEnd();
-		}
+		// Always route to host. Host validates and decides whether the hold
+		// counts (assigned crew = real, others = visual-only fake).
+		BeginHold();
+		return true;
+	}
+
+	void Component.IPressable.Release( Component.IPressable.Event e )
+	{
+		EndHold();
+	}
+
+	[Rpc.Host]
+	public void BeginHold()
+	{
+		if ( HoldingConnectionId != Guid.Empty ) return;
+		var caller = Rpc.Caller;
+		if ( caller is null ) return;
+
+		cachedHolder = ResolvePlayerByConnectionId( caller.Id );
+		BroadcastHoldStart( caller.Id );
+	}
+
+	[Rpc.Host]
+	public void EndHold()
+	{
+		var caller = Rpc.Caller;
+		if ( caller is null ) return;
+		if ( HoldingConnectionId != caller.Id ) return;
+
+		cachedHolder = null;
+		BroadcastHoldEnd();
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastHoldStart( Guid connectionId )
+	{
+		HoldingConnectionId = connectionId;
+		HoldStartTime = Time.Now;   // LOCAL clock on each client
 	}
 
 	[Rpc.Broadcast]
@@ -39,4 +67,22 @@ public sealed class HoldUseTaskObject : TaskObject
 		HoldingConnectionId = Guid.Empty;
 		HoldStartTime = 0f;
 	}
+
+	protected override void OnReset()
+	{
+		if ( Networking.IsHost && HoldingConnectionId != Guid.Empty )
+		{
+			BroadcastHoldEnd();
+		}
+	}
+
+	private static Player ResolvePlayerByConnectionId( Guid connectionId )
+	{
+		return Game.ActiveScene?
+			.GetAllComponents<Player>()
+			.FirstOrDefault( p => p.OwnerConnectionId == connectionId );
+	}
+
+	// Host-side timer + completion validation in Task 6.
+	// UpdateGlow in Task 7.
 }
