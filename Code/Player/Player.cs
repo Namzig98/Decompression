@@ -39,34 +39,13 @@ public sealed class Player : Component
 	//      through the normal owner-authoritative physics sync — non-owner
 	//      writes briefly set a position then get reconciled on the next
 	//      sync tick from the owner.
-	public void RespawnForNewRound()
+	// Caller (Match) provides the spawn point so it can coordinate unique
+	// spawn assignments across all players (avoids two players spawning at
+	// the same point and colliding into each other).
+	public void RespawnForNewRound( Vector3 position, Rotation rotation )
 	{
 		if ( !Networking.IsHost ) return;
-
-		var spawner = Game.ActiveScene?.GetAllComponents<PlayerSpawner>().FirstOrDefault();
-		Vector3 spawnPos = WorldPosition;
-		Rotation spawnRot = WorldRotation;
-
-		if ( spawner is not null && spawner.SpawnPoints is not null && spawner.SpawnPoints.Count > 0 )
-		{
-			var pick = spawner.SpawnPoints[Game.Random.Int( 0, spawner.SpawnPoints.Count - 1 )];
-			if ( pick is not null )
-			{
-				spawnPos = pick.WorldPosition;
-				spawnRot = pick.WorldRotation;
-				Log.Info( $"RespawnForNewRound[{Network.Owner?.DisplayName ?? "?"}]: picked '{pick.Name}' @ {spawnPos}" );
-			}
-			else
-			{
-				Log.Warning( $"RespawnForNewRound: SpawnPoints[{Game.Random.Int( 0, spawner.SpawnPoints.Count - 1 )}] was null" );
-			}
-		}
-		else
-		{
-			Log.Warning( $"RespawnForNewRound: spawner={(spawner is null ? "null" : "ok")}, spawnPoints.Count={spawner?.SpawnPoints?.Count ?? -1} — keeping current position" );
-		}
-
-		BroadcastRespawn( spawnPos, spawnRot );
+		BroadcastRespawn( position, rotation );
 	}
 
 	[Rpc.Broadcast]

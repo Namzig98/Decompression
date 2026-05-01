@@ -163,12 +163,9 @@ public sealed class Match : Component
 			section.ResetSection();
 		}
 
-		// 3. Reset all players: clear roles, mark alive, respawn.
+		// 3. Reset all players: clear roles, mark alive, respawn at unique points.
 		RoleAssigner.ClearAll( allPlayers );
-		foreach ( var p in allPlayers )
-		{
-			p.RespawnForNewRound();
-		}
+		RespawnAllAtUniqueSpawnPoints( allPlayers );
 
 		// 4. Lock late joiners into spectator from this point onward.
 		if ( PlayerSpawner is not null )
@@ -227,11 +224,8 @@ public sealed class Match : Component
 		// 1. Clear roles for the next round.
 		RoleAssigner.ClearAll( allPlayers );
 
-		// 2. Respawn every player alive at a SpawnPoint.
-		foreach ( var p in allPlayers )
-		{
-			p.RespawnForNewRound();
-		}
+		// 2. Respawn every player alive at a unique SpawnPoint.
+		RespawnAllAtUniqueSpawnPoints( allPlayers );
 
 		// 3. Reset sections + clear corpses (anything left from RoundEnd).
 		foreach ( var section in scene.GetAllComponents<Section>() )
@@ -263,5 +257,40 @@ public sealed class Match : Component
 		StateEnteredAt = enteredAt;
 		LastOutcome = outcome;
 		LastOutcomeReason = reason ?? "";
+	}
+
+	// Shuffle the configured SpawnPoints and assign each player a unique one
+	// (round-robin if more players than points). Avoids two players spawning
+	// at the same coordinates and ragdolling into each other on round start.
+	private void RespawnAllAtUniqueSpawnPoints( System.Collections.Generic.List<Player> players )
+	{
+		var spawnPoints = ( PlayerSpawner?.SpawnPoints ?? new System.Collections.Generic.List<GameObject>() ).ToList();
+
+		// Fisher-Yates shuffle.
+		for ( int i = spawnPoints.Count - 1; i > 0; i-- )
+		{
+			int j = Game.Random.Int( 0, i );
+			(spawnPoints[i], spawnPoints[j]) = (spawnPoints[j], spawnPoints[i]);
+		}
+
+		for ( int i = 0; i < players.Count; i++ )
+		{
+			var p = players[i];
+			if ( !p.IsValid() ) continue;
+
+			Vector3 pos = p.WorldPosition;
+			Rotation rot = p.WorldRotation;
+			if ( spawnPoints.Count > 0 )
+			{
+				var sp = spawnPoints[i % spawnPoints.Count];
+				if ( sp is not null )
+				{
+					pos = sp.WorldPosition;
+					rot = sp.WorldRotation;
+				}
+			}
+
+			p.RespawnForNewRound( pos, rot );
+		}
 	}
 }
