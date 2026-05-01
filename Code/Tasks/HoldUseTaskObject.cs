@@ -15,9 +15,21 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 	public Guid HoldingConnectionId { get; private set; }
 	public float HoldStartTime { get; private set; }
 
-	private Color initialTint;
+	private Color initialTint = Color.White;
 	private bool initialTintCaptured;
 	private Player cachedHolder;
+
+	protected override void OnStart()
+	{
+		// Capture the renderer's idle tint exactly once at scene-load time.
+		// Doing this lazily in UpdateGlow risked sampling a mid-lerp value
+		// if something wrote Tint before the first OnUpdate.
+		if ( GlowRenderer is not null && !initialTintCaptured )
+		{
+			initialTint = GlowRenderer.Tint;
+			initialTintCaptured = true;
+		}
+	}
 
 	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
@@ -156,14 +168,7 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 	private void UpdateGlow()
 	{
 		if ( GlowRenderer is null ) return;
-
-		// Capture the renderer's idle tint once on first update so the lerp
-		// returns to it cleanly when no hold is in progress.
-		if ( !initialTintCaptured )
-		{
-			initialTint = GlowRenderer.Tint;
-			initialTintCaptured = true;
-		}
+		if ( !initialTintCaptured ) return;   // OnStart hasn't fired yet
 
 		float progress = 0f;
 		if ( HoldingConnectionId != Guid.Empty )
