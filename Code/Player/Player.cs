@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Sandbox;
 
 namespace Decompression;
@@ -18,6 +19,22 @@ public sealed class Player : Component
 	public void SetSaboteur( bool value )
 	{
 		IsSaboteur = value;
+	}
+
+	// Reset this player's IsAlive flag to true and teleport them to a spawn
+	// point. Used by Match (C1) at round start and round end.
+	[Rpc.Host]
+	public void RespawnForNewRound()
+	{
+		if ( !Networking.IsHost ) return;
+		IsAlive = true;
+
+		var spawner = Game.ActiveScene?.GetAllComponents<PlayerSpawner>().FirstOrDefault();
+		if ( spawner is not null && spawner.SpawnPoints.Count > 0 )
+		{
+			var pick = spawner.SpawnPoints[Game.Random.Int( 0, spawner.SpawnPoints.Count - 1 )];
+			WorldTransform = pick.WorldTransform;
+		}
 	}
 
 	public static event Action<Player, DeathCause> Died;

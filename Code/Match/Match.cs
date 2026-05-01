@@ -88,8 +88,72 @@ public sealed class Match : Component
 		}
 	}
 
-	// Filled in by Tasks 6-7.
-	private void EnterRound() { }
+	private void EnterRound()
+	{
+		if ( !Networking.IsHost ) return;
+
+		var scene = Game.ActiveScene;
+		if ( scene is null ) return;
+
+		var allPlayers = scene.GetAllComponents<Player>().ToList();
+		if ( allPlayers.Count < MinPlayersToStart )
+		{
+			Log.Warning( $"Match.EnterRound: only {allPlayers.Count} players, need {MinPlayersToStart}" );
+			return;
+		}
+
+		// 1. Clear corpses (generic + decompression).
+		CorpseCleanupSignal.RaiseGenericCleanup();
+		foreach ( var corpse in scene.GetAllComponents<Corpse>().ToList() )
+		{
+			corpse.Cleanup();
+		}
+
+		// 2. Reset every section to Idle.
+		foreach ( var section in scene.GetAllComponents<Section>() )
+		{
+			section.Reset();
+		}
+
+		// 3. Reset all players: clear roles, mark alive, respawn.
+		RoleAssigner.ClearAll( allPlayers );
+		foreach ( var p in allPlayers )
+		{
+			p.RespawnForNewRound();
+		}
+
+		// 4. Lock late joiners into spectator from this point onward.
+		if ( PlayerSpawner is not null )
+		{
+			PlayerSpawner.RoundInProgress = true;
+		}
+
+		// 5. Assign saboteurs from the alive pool.
+		var saboteurCount = RoleAssigner.ResolveSaboteurCount( allPlayers.Count, SaboteurCountOverride );
+		var saboteurIds = RoleAssigner.Assign( allPlayers, saboteurCount );
+
+		// 6. Update synced state.
+		State = MatchState.Round;
+		StateEnteredAt = Time.Now;
+		LastOutcome = MatchOutcome.None;
+		LastOutcomeReason = "";
+
+		// 7. Broadcast to every client with the saboteur IDs in the payload.
+		//    Race-free role reveal: clients read role from payload, not from
+		//    Player.IsSaboteur (which may not have synced yet).
+		OnRoundStarted( saboteurIds );
+	}
+
+	[Rpc.Broadcast]
+	private void OnRoundStarted( Guid[] saboteurConnectionIds )
+	{
+		var localId = Connection.Local?.Id ?? Guid.Empty;
+		var localIsSaboteur = saboteurConnectionIds is not null
+			&& saboteurConnectionIds.Contains( localId );
+		RoundStarted?.Invoke( this, localIsSaboteur );
+	}
+
+	// Filled in by Task 7.
 	private void EnterRoundEnd( MatchOutcome winner, string reason ) { }
 	private void EnterLobby() { }
 }
