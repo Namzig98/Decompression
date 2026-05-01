@@ -10,8 +10,13 @@ public sealed class Panel : Component, Component.IPressable
 	[Property] public ModelRenderer GlowRenderer { get; set; }
 	[Property] public float HoldDuration { get; set; } = 5f;
 
-	[Sync( SyncFlags.FromHost )] public Guid HackingConnectionId { get; set; }
-	[Sync( SyncFlags.FromHost )] public float HackStartTime { get; set; }
+	// State updated via [Rpc.Broadcast] BroadcastHackStart/End rather than
+	// [Sync] (sync wasn't reliably propagating to non-host clients in this
+	// project). HackStartTime is the LOCAL Time.Now on each client, set when
+	// the broadcast is received — this also sidesteps the host/client clock
+	// skew that would otherwise mis-compute glow progress.
+	public Guid HackingConnectionId { get; private set; }
+	public float HackStartTime { get; private set; }
 
 	private Color initialTint;
 	private bool initialTintCaptured;
@@ -42,18 +47,15 @@ public sealed class Panel : Component, Component.IPressable
 		var caller = Rpc.Caller;
 		if ( caller is null ) return;
 
-		// Host-side authoritative role check. Replaces the now-removed
-		// client-side check in Press, which was racing against the broadcast
-		// that propagates IsSaboteur to non-host clients.
+		// Host-side authoritative role check.
 		var hackerPlayer = ResolvePlayerByConnectionId( caller.Id );
 		if ( hackerPlayer is null || !hackerPlayer.IsSaboteur )
 		{
 			return;
 		}
 
-		HackingConnectionId = caller.Id;
-		HackStartTime = Time.Now;
 		cachedHacker = hackerPlayer;
+		BroadcastHackStart( caller.Id );
 	}
 
 	[Rpc.Host]
@@ -63,8 +65,22 @@ public sealed class Panel : Component, Component.IPressable
 		if ( caller is null ) return;
 		if ( HackingConnectionId != caller.Id ) return;
 
-		HackingConnectionId = Guid.Empty;
 		cachedHacker = null;
+		BroadcastHackEnd();
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastHackStart( Guid connectionId )
+	{
+		HackingConnectionId = connectionId;
+		HackStartTime = Time.Now;   // local clock on each client
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastHackEnd()
+	{
+		HackingConnectionId = Guid.Empty;
+		HackStartTime = 0f;
 	}
 
 	private static Player ResolvePlayer( GameObject go )
@@ -85,22 +101,22 @@ public sealed class Panel : Component, Component.IPressable
 		// no longer a saboteur, or the target section is no longer Idle.
 		if ( !IsHackerStillValid() )
 		{
-			HackingConnectionId = Guid.Empty;
 			cachedHacker = null;
+			BroadcastHackEnd();
 			return;
 		}
 
 		if ( TargetSection is not null && TargetSection.State != VentingState.Idle )
 		{
-			HackingConnectionId = Guid.Empty;
 			cachedHacker = null;
+			BroadcastHackEnd();
 			return;
 		}
 
 		if ( Time.Now - HackStartTime >= HoldDuration )
 		{
-			HackingConnectionId = Guid.Empty;
 			cachedHacker = null;
+			BroadcastHackEnd();
 			TargetSection?.RequestVent();
 		}
 	}

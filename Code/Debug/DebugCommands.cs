@@ -76,9 +76,10 @@ public static class DebugCommands
 			return;
 		}
 
-		// Jump HackStartTime backward so the host's OnUpdate sees a completed
-		// hold and triggers the vent on the next frame.
-		panel.HackStartTime = Time.Now - panel.HoldDuration - 0.1f;
+		// Force-vent the panel's target section directly. (The previous
+		// approach of rewinding HackStartTime no longer works since the
+		// property is private-set and synced via broadcast.)
+		panel.TargetSection?.RequestVent();
 	}
 
 	[ConCmd( "decompv2_section_state" )]
