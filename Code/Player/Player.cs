@@ -15,8 +15,17 @@ public sealed class Player : Component
 	[Sync( SyncFlags.FromHost )] public Guid OwnerConnectionId { get; set; }
 	[Sync( SyncFlags.FromHost )] public bool IsSaboteur { get; private set; }
 
-	[Rpc.Host]
+	// Host-only entry point. Routes through a broadcast so every client's
+	// local IsSaboteur flag is updated reliably (works around [Sync] not
+	// propagating consistently for our scene-static / replicated objects).
 	public void SetSaboteur( bool value )
+	{
+		if ( !Networking.IsHost ) return;
+		BroadcastIsSaboteur( value );
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastIsSaboteur( bool value )
 	{
 		IsSaboteur = value;
 	}
