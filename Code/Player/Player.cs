@@ -79,7 +79,17 @@ public sealed class Player : Component
 			return null;
 		}
 
-		var corpseGo = CorpsePrefab.Clone( WorldTransform, name: $"Corpse ({GameObject.Name})" );
+		// Lift the spawn position off the floor for Decompression deaths so the
+		// ragdoll's lower bones don't initialize inside the floor geometry and
+		// then fight to escape. Generic deaths spawn at the player's exact
+		// position so they fall and settle naturally.
+		var spawnTransform = WorldTransform;
+		if ( cause == DeathCause.Decompression )
+		{
+			spawnTransform = spawnTransform.WithPosition( spawnTransform.Position + Vector3.Up * 40f );
+		}
+
+		var corpseGo = CorpsePrefab.Clone( spawnTransform, name: $"Corpse ({GameObject.Name})" );
 
 		var corpse = corpseGo.Components.Get<Corpse>();
 		if ( corpse is null )
