@@ -160,7 +160,7 @@ public sealed class Match : Component
 		// 2. Reset every section to Idle.
 		foreach ( var section in scene.GetAllComponents<Section>() )
 		{
-			section.Reset();
+			section.ResetSection();
 		}
 
 		// 3. Reset all players: clear roles, mark alive, respawn.
@@ -236,7 +236,7 @@ public sealed class Match : Component
 		// 3. Reset sections + clear corpses (anything left from RoundEnd).
 		foreach ( var section in scene.GetAllComponents<Section>() )
 		{
-			section.Reset();
+			section.ResetSection();
 		}
 		CorpseCleanupSignal.RaiseGenericCleanup();
 		foreach ( var corpse in scene.GetAllComponents<Corpse>().ToList() )

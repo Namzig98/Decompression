@@ -32,7 +32,7 @@ public sealed class Section : Component
 	// round start and round end so vented sections from the prior round are
 	// reset before the next round begins.
 	[Rpc.Host]
-	public void Reset()
+	public void ResetSection()
 	{
 		if ( !Networking.IsHost ) return;
 		State = VentingState.Idle;
