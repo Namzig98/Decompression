@@ -21,11 +21,22 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 
 	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
-		// DIAGNOSTIC: confirm Press is firing.
-		Log.Info( $"HoldUseTaskObject.Press fired on '{DisplayName}' by source={e.Source?.GameObject.Name ?? "null"}" );
+		// Already-complete tasks can't be re-engaged.
+		if ( IsCompleted ) return false;
 
-		// Always route to host. Host validates and decides whether the hold
-		// counts (assigned crew = real, others = visual-only fake).
+		// Look up the local player to gate by role.
+		var localPlayer = Game.ActiveScene?
+			.GetAllComponents<Player>()
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
+		if ( localPlayer is null || !localPlayer.IsAlive ) return false;
+
+		// Saboteurs can press any task — visual fake-completion (the
+		// deception). Crew can only press tasks ASSIGNED to them. Crew
+		// pressing E on someone else's task gets no glow, no progress,
+		// no anything.
+		bool canPress = localPlayer.IsSaboteur || IsAssignedToLocal;
+		if ( !canPress ) return false;
+
 		BeginHold();
 		return true;
 	}
