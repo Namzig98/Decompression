@@ -1,0 +1,53 @@
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showBadge )
+	{
+		<div class="badge @badgeClass">@badgeText</div>
+	}
+</root>
+
+@code {
+	bool showBadge;
+	string badgeText = "";
+	string badgeClass = "";
+
+	protected override void OnUpdate()
+	{
+		var match = Decompression.Match.Current;
+		var localPlayer = Game.ActiveScene?
+			.GetAllComponents<Decompression.Player>()
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
+
+		if ( match is null || localPlayer is null )
+		{
+			showBadge = false;
+			return;
+		}
+
+		// Only show during Round and RoundEnd.
+		if ( match.State == Decompression.MatchState.Lobby )
+		{
+			showBadge = false;
+			return;
+		}
+
+		showBadge = true;
+		if ( localPlayer.IsSaboteur )
+		{
+			badgeText = "SABOTEUR";
+			badgeClass = "sab";
+		}
+		else
+		{
+			badgeText = "CREW";
+			badgeClass = "crew";
+		}
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showBadge, badgeText, badgeClass );
+}

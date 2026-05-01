@@ -1,0 +1,22 @@
+.badge {
+	position: absolute;
+	bottom: 24px;
+	left: 24px;
+	padding: 8px 18px;
+	font-family: monospace;
+	font-size: 24px;
+	letter-spacing: 4px;
+	border: 2px solid;
+	background-color: rgba(0, 0, 0, 0.6);
+	pointer-events: none;
+}
+
+.badge.sab {
+	color: #ff4444;
+	border-color: #ff4444;
+}
+
+.badge.crew {
+	color: #4488ff;
+	border-color: #4488ff;
+}
