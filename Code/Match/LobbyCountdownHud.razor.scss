@@ -1,0 +1,13 @@
+.lobby-countdown {
+	position: absolute;
+	top: 24px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 6px 18px;
+	font-family: monospace;
+	font-size: 24px;
+	color: #cccccc;
+	background-color: rgba(0, 0, 0, 0.5);
+	border: 1px solid #555555;
+	pointer-events: none;
+}

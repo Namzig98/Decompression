@@ -1,0 +1,44 @@
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showHud )
+	{
+		<div class="lobby-countdown">@hudText</div>
+	}
+</root>
+
+@code {
+	bool showHud;
+	string hudText = "";
+
+	protected override void OnUpdate()
+	{
+		var match = Decompression.Match.Current;
+		if ( match is null || match.State != Decompression.MatchState.Lobby )
+		{
+			showHud = false;
+			return;
+		}
+
+		var playerCount = Game.ActiveScene?
+			.GetAllComponents<Decompression.Player>()
+			.Count() ?? 0;
+
+		showHud = true;
+		if ( playerCount < match.MinPlayersToStart )
+		{
+			hudText = $"Waiting for players ({match.MinPlayersToStart} minimum, 4 recommended)";
+		}
+		else
+		{
+			var seconds = (int)System.Math.Ceiling( match.SecondsLeftInState() );
+			hudText = $"Round starting in {seconds}s";
+		}
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showHud, hudText );
+}
