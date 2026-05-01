@@ -58,6 +58,46 @@ public static class DebugCommands
 		CorpseCleanupSignal.RaiseGenericCleanup();
 	}
 
+	[ConCmd( "decompv2_complete_hack" )]
+	public static void CompleteHack()
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_complete_hack: host only" );
+			return;
+		}
+
+		var panel = Game.ActiveScene?.GetAllComponents<Panel>()
+			.FirstOrDefault( p => p.HackingConnectionId != System.Guid.Empty );
+
+		if ( panel is null )
+		{
+			Log.Warning( "decompv2_complete_hack: no panel is being hacked" );
+			return;
+		}
+
+		// Jump HackStartTime backward so the host's OnUpdate sees a completed
+		// hold and triggers the vent on the next frame.
+		panel.HackStartTime = Time.Now - panel.HoldDuration - 0.1f;
+	}
+
+	[ConCmd( "decompv2_section_state" )]
+	public static void SectionState( string sectionDisplayName )
+	{
+		var section = Game.ActiveScene?.GetAllComponents<Section>()
+			.FirstOrDefault( s => s.DisplayName == sectionDisplayName );
+
+		if ( section is null )
+		{
+			Log.Warning( $"decompv2_section_state: no section named '{sectionDisplayName}'" );
+			return;
+		}
+
+		Log.Info( $"Section '{sectionDisplayName}': State={section.State}, " +
+			$"StateEnteredAt={section.StateEnteredAt:F1}, Now={Time.Now:F1}, " +
+			$"Occupants={section.Occupants.Count}" );
+	}
+
 	[ConCmd( "decompv2_request_vent" )]
 	public static void RequestVent( string sectionDisplayName )
 	{
