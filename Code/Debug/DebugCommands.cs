@@ -58,6 +58,85 @@ public static class DebugCommands
 		CorpseCleanupSignal.RaiseGenericCleanup();
 	}
 
+	[ConCmd( "decompv2_complete_my_tasks" )]
+	public static void CompleteMyTasks()
+	{
+		var localId = Connection.Local?.Id ?? System.Guid.Empty;
+		if ( localId == System.Guid.Empty )
+		{
+			Log.Warning( "decompv2_complete_my_tasks: no local connection" );
+			return;
+		}
+
+		var tasks = Game.ActiveScene?.GetAllComponents<TaskObject>()
+			.Where( t => t.AssignedConnectionId == localId )
+			.ToList();
+
+		if ( tasks is null || tasks.Count == 0 )
+		{
+			Log.Warning( "decompv2_complete_my_tasks: no tasks assigned to local player" );
+			return;
+		}
+
+		foreach ( var task in tasks )
+		{
+			task.ForceComplete();
+		}
+		Log.Info( $"decompv2_complete_my_tasks: requested completion of {tasks.Count} task(s)" );
+	}
+
+	[ConCmd( "decompv2_list_tasks" )]
+	public static void ListTasks()
+	{
+		var scene = Game.ActiveScene;
+		if ( scene is null )
+		{
+			Log.Warning( "decompv2_list_tasks: no active scene" );
+			return;
+		}
+
+		var tasks = scene.GetAllComponents<TaskObject>().ToList();
+		if ( tasks.Count == 0 )
+		{
+			Log.Info( "decompv2_list_tasks: no TaskObjects in scene" );
+			return;
+		}
+
+		var players = scene.GetAllComponents<Player>().ToList();
+		foreach ( var task in tasks )
+		{
+			var assigneeName = task.AssignedConnectionId == System.Guid.Empty
+				? "(unassigned)"
+				: players
+					.FirstOrDefault( p => p.OwnerConnectionId == task.AssignedConnectionId )
+					?.Network.Owner?.DisplayName ?? "(unknown)";
+			var status = task.IsCompleted ? "DONE" : "pending";
+			Log.Info( $"  [{task.LocationLabel}] {task.DisplayName} → {assigneeName} ({status})" );
+		}
+	}
+
+	[ConCmd( "decompv2_complete_task" )]
+	public static void CompleteTask( string displayName )
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_complete_task: host only" );
+			return;
+		}
+
+		var task = Game.ActiveScene?.GetAllComponents<TaskObject>()
+			.FirstOrDefault( t => t.DisplayName == displayName );
+
+		if ( task is null )
+		{
+			Log.Warning( $"decompv2_complete_task: no TaskObject named '{displayName}'" );
+			return;
+		}
+
+		task.ForceComplete();
+		Log.Info( $"decompv2_complete_task: '{displayName}' marked complete" );
+	}
+
 	[ConCmd( "decompv2_complete_hack" )]
 	public static void CompleteHack()
 	{

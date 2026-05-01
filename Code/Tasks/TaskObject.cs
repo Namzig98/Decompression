@@ -45,5 +45,14 @@ public abstract class TaskObject : Component
 		OnReset();
 	}
 
+	// Public host-side completion entry point for debug tooling. Bypasses
+	// the gameplay-specific gating in subclasses — flips IsCompleted directly.
+	[Rpc.Host]
+	public void ForceComplete()
+	{
+		if ( !Networking.IsHost ) return;
+		IsCompleted = true;
+	}
+
 	protected virtual void OnReset() { }
 }
