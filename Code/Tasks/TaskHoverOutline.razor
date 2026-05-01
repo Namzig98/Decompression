@@ -17,6 +17,8 @@
 	private bool showOutline;
 	private string hoveredName = "";
 
+	private RealTimeSince timeSinceLastDiagLog = 9999f;
+
 	protected override void OnUpdate()
 	{
 		showOutline = false;
@@ -29,7 +31,6 @@
 			.FirstOrDefault( c => c.IsMainCamera );
 		if ( camera is null ) return;
 
-		// Trace forward from camera at the player's typical interact reach.
 		const float reach = 150f;
 		var origin = camera.WorldPosition;
 		var direction = camera.WorldRotation.Forward;
@@ -37,17 +38,28 @@
 			.Ray( origin, origin + direction * reach )
 			.Run();
 
+		// Diagnostic: log every ~0.5s what the trace is hitting + whether
+		// we found a TaskObject + whether it's assigned to local.
+		if ( timeSinceLastDiagLog > 0.5f )
+		{
+			timeSinceLastDiagLog = 0f;
+			var hitName = trace.GameObject?.Name ?? "(none)";
+			var task = trace.GameObject?.Components.Get<Decompression.TaskObject>( includeDisabled: true )
+				?? trace.GameObject?.Root?.Components.Get<Decompression.TaskObject>( includeDisabled: true );
+			Log.Info( $"HoverOutline: hit={trace.Hit} obj={hitName} task={(task is null ? "null" : task.DisplayName)} mine={(task?.IsAssignedToLocal ?? false)} done={(task?.IsCompleted ?? false)}" );
+		}
+
 		if ( !trace.Hit || trace.GameObject is null ) return;
 
-		var task = trace.GameObject.Components.Get<Decompression.TaskObject>( includeDisabled: true )
+		var taskComp = trace.GameObject.Components.Get<Decompression.TaskObject>( includeDisabled: true )
 			?? trace.GameObject.Root?.Components.Get<Decompression.TaskObject>( includeDisabled: true );
 
-		if ( task is null ) return;
-		if ( !task.IsAssignedToLocal ) return;
-		if ( task.IsCompleted ) return;
+		if ( taskComp is null ) return;
+		if ( !taskComp.IsAssignedToLocal ) return;
+		if ( taskComp.IsCompleted ) return;
 
 		showOutline = true;
-		hoveredName = $"{task.LocationLabel} — {task.DisplayName}";
+		hoveredName = $"{taskComp.LocationLabel} — {taskComp.DisplayName}";
 	}
 
 	protected override int BuildHash() => System.HashCode.Combine( showOutline, hoveredName );
