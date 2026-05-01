@@ -49,8 +49,6 @@ public sealed class Section : Component
 			return;
 		}
 
-		Log.Info( $"Section '{DisplayName}' OnEnterVenting: occupants count = {occupants.Count}" );
-
 		var killedSnapshot = occupants
 			.Where( p => p.IsValid() )
 			.ToList();
@@ -95,24 +93,17 @@ public sealed class Section : Component
 	// track occupancy.
 	public void OnVolumeEnter( GameObject other )
 	{
-		Log.Info( $"Section '{DisplayName}' OnVolumeEnter: other={other?.Name ?? "null"}, IsHost={Networking.IsHost}" );
 		if ( !Networking.IsHost ) return;
-
 		var player = ResolvePlayer( other );
-		Log.Info( $"  Resolved player: {(player is null ? "null" : player.Network.Owner?.DisplayName ?? "?")}; occupants will be {(player is null ? occupants.Count : occupants.Count + 1)}" );
 		if ( player is null ) return;
-
 		occupants.Add( player );
 	}
 
 	public void OnVolumeExit( GameObject other )
 	{
-		Log.Info( $"Section '{DisplayName}' OnVolumeExit: other={other?.Name ?? "null"}, IsHost={Networking.IsHost}" );
 		if ( !Networking.IsHost ) return;
-
 		var player = ResolvePlayer( other );
 		if ( player is null ) return;
-
 		occupants.Remove( player );
 	}
 
