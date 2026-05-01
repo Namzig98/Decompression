@@ -33,7 +33,38 @@ public sealed class Section : Component
 		StateEnteredAt = Time.Now;
 	}
 
-	// Occupancy tracking — Task 9.
+	protected override void OnEnabled()
+	{
+		occupants.Clear();
+	}
+
+	protected override void OnTriggerEnter( Collider other )
+	{
+		if ( !Networking.IsHost ) return;
+
+		var player = ResolvePlayer( other?.GameObject );
+		if ( player is null ) return;
+
+		occupants.Add( player );
+	}
+
+	protected override void OnTriggerExit( Collider other )
+	{
+		if ( !Networking.IsHost ) return;
+
+		var player = ResolvePlayer( other?.GameObject );
+		if ( player is null ) return;
+
+		occupants.Remove( player );
+	}
+
+	private static Player ResolvePlayer( GameObject go )
+	{
+		if ( go is null ) return null;
+		return go.Components.Get<Player>( includeDisabled: true )
+			?? go.Root?.Components.Get<Player>( includeDisabled: true );
+	}
+
 	// State-machine OnUpdate transitions — Task 10.
 	// Kill loop + Vented broadcast on Warning -> Venting — Task 12.
 }
