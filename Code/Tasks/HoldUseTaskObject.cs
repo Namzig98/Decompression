@@ -170,12 +170,20 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 		if ( GlowRenderer is null ) return;
 		if ( !initialTintCaptured ) return;   // OnStart hasn't fired yet
 
-		float progress = 0f;
+		Color target = initialTint;
+
 		if ( HoldingConnectionId != Guid.Empty )
 		{
-			progress = Math.Clamp( ( Time.Now - HoldStartTime ) / HoldDuration, 0f, 1f );
+			// Active hold takes priority — ramp idle → red.
+			var progress = Math.Clamp( ( Time.Now - HoldStartTime ) / HoldDuration, 0f, 1f );
+			target = Color.Lerp( initialTint, Color.Red, progress );
+		}
+		else if ( IsLocallyHovered )
+		{
+			// Hover (no hold) — soft yellow highlight to indicate "interactable".
+			target = Color.Lerp( initialTint, Color.Yellow, 0.4f );
 		}
 
-		GlowRenderer.Tint = Color.Lerp( initialTint, Color.Red, progress );
+		GlowRenderer.Tint = target;
 	}
 }

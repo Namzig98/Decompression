@@ -12,6 +12,11 @@ public abstract class TaskObject : Component
 	[Sync( SyncFlags.FromHost )] public Guid AssignedConnectionId { get; set; }
 	[Sync( SyncFlags.FromHost )] public bool IsCompleted { get; set; }
 
+	// Local-only flag set by TaskHoverOutline when this task is currently
+	// under the local player's interact reticle. NOT synced — each client
+	// tracks their own hover state. Subclasses use this for hover visuals.
+	public bool IsLocallyHovered { get; set; }
+
 	public bool IsAssignedToLocal =>
 		AssignedConnectionId != Guid.Empty
 		&& AssignedConnectionId == ( Connection.Local?.Id ?? Guid.Empty );

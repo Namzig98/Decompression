@@ -17,27 +17,37 @@
 	private bool showOutline;
 	private string hoveredName = "";
 
-	private RealTimeSince timeSinceLastDiagLog = 9999f;
+	// Track the task the local player is currently hovering so we can
+	// clear its IsLocallyHovered flag when they look away.
+	private Decompression.TaskObject lastHovered;
 
 	protected override void OnUpdate()
 	{
+		Decompression.TaskObject newHovered = null;
 		showOutline = false;
 
 		var match = Decompression.Match.Current;
-		if ( match is null || match.State != MatchState.Round ) return;
+		if ( match is null || match.State != MatchState.Round )
+		{
+			UpdateHoveredFlag( null );
+			return;
+		}
 
 		var camera = Game.ActiveScene?
 			.GetAllComponents<CameraComponent>()
 			.FirstOrDefault( c => c.IsMainCamera );
-		if ( camera is null ) return;
+		if ( camera is null )
+		{
+			UpdateHoveredFlag( null );
+			return;
+		}
 
 		const float reach = 150f;
 		var origin = camera.WorldPosition;
 		var direction = camera.WorldRotation.Forward;
 
-		// Find the local player's GameObject so we can exclude it from the
-		// trace — otherwise the camera-forward ray starts inside the player's
-		// own collider and hits "self" before reaching any task.
+		// Exclude the local player from the trace — otherwise the camera-
+		// forward ray hits the player's own collider before reaching the task.
 		var localPlayer = Game.ActiveScene
 			.GetAllComponents<Decompression.Player>()
 			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
@@ -52,28 +62,39 @@
 
 		var trace = traceBuilder.Run();
 
-		// Diagnostic: log every ~0.5s what the trace is hitting + whether
-		// we found a TaskObject + whether it's assigned to local.
-		if ( timeSinceLastDiagLog > 0.5f )
+		if ( trace.Hit && trace.GameObject is not null )
 		{
-			timeSinceLastDiagLog = 0f;
-			var hitName = trace.GameObject?.Name ?? "(none)";
-			var task = trace.GameObject?.Components.Get<Decompression.TaskObject>( includeDisabled: true )
-				?? trace.GameObject?.Root?.Components.Get<Decompression.TaskObject>( includeDisabled: true );
-			Log.Info( $"HoverOutline: hit={trace.Hit} obj={hitName} task={(task is null ? "null" : task.DisplayName)} mine={(task?.IsAssignedToLocal ?? false)} done={(task?.IsCompleted ?? false)}" );
+			var taskComp = trace.GameObject.Components.Get<Decompression.TaskObject>( includeDisabled: true )
+				?? trace.GameObject.Root?.Components.Get<Decompression.TaskObject>( includeDisabled: true );
+
+			if ( taskComp is not null && taskComp.IsAssignedToLocal && !taskComp.IsCompleted )
+			{
+				newHovered = taskComp;
+				showOutline = true;
+				hoveredName = $"{taskComp.LocationLabel} — {taskComp.DisplayName}";
+			}
 		}
 
-		if ( !trace.Hit || trace.GameObject is null ) return;
+		UpdateHoveredFlag( newHovered );
+	}
 
-		var taskComp = trace.GameObject.Components.Get<Decompression.TaskObject>( includeDisabled: true )
-			?? trace.GameObject.Root?.Components.Get<Decompression.TaskObject>( includeDisabled: true );
+	private void UpdateHoveredFlag( Decompression.TaskObject newHovered )
+	{
+		if ( newHovered == lastHovered ) return;
 
-		if ( taskComp is null ) return;
-		if ( !taskComp.IsAssignedToLocal ) return;
-		if ( taskComp.IsCompleted ) return;
+		if ( lastHovered is not null && lastHovered.IsValid() )
+			lastHovered.IsLocallyHovered = false;
+		if ( newHovered is not null )
+			newHovered.IsLocallyHovered = true;
 
-		showOutline = true;
-		hoveredName = $"{taskComp.LocationLabel} — {taskComp.DisplayName}";
+		lastHovered = newHovered;
+	}
+
+	protected override void OnDestroy()
+	{
+		// Clear our hover flag if we're destroyed mid-hover.
+		if ( lastHovered is not null && lastHovered.IsValid() )
+			lastHovered.IsLocallyHovered = false;
 	}
 
 	protected override int BuildHash() => System.HashCode.Combine( showOutline, hoveredName );
