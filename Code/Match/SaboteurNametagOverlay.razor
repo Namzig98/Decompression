@@ -1,0 +1,66 @@
+@using System.Collections.Generic;
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@foreach ( var marker in markers )
+	{
+		<div class="marker" style="left: @(marker.X)px; top: @(marker.Y)px;">●</div>
+	}
+</root>
+
+@code {
+	private record struct MarkerPos( int X, int Y );
+	private List<MarkerPos> markers = new();
+
+	protected override void OnUpdate()
+	{
+		markers.Clear();
+
+		var match = Decompression.Match.Current;
+		if ( match is null || match.State != Decompression.MatchState.Round )
+		{
+			return;
+		}
+
+		var localPlayer = Game.ActiveScene?
+			.GetAllComponents<Decompression.Player>()
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
+		if ( localPlayer is null || !localPlayer.IsSaboteur ) return;
+
+		var camera = Game.ActiveScene?
+			.GetAllComponents<CameraComponent>()
+			.FirstOrDefault( c => c.IsMainCamera );
+		if ( camera is null ) return;
+
+		var others = Game.ActiveScene
+			.GetAllComponents<Decompression.Player>()
+			.Where( p => p != localPlayer && p.IsSaboteur && p.IsAlive )
+			.ToList();
+
+		foreach ( var other in others )
+		{
+			var headPos = other.WorldPosition + Vector3.Up * 80f;
+			var screen = camera.PointToScreenNormalized( headPos );
+			if ( screen.z <= 0f ) continue;   // behind camera
+			var screenSize = Screen.Size;
+			var px = (int)(screen.x * screenSize.x);
+			var py = (int)(screen.y * screenSize.y);
+			markers.Add( new MarkerPos( px, py ) );
+		}
+	}
+
+	protected override int BuildHash()
+	{
+		var hash = markers.Count;
+		foreach ( var m in markers )
+		{
+			// 4px granularity to avoid every-frame DOM rebuild from sub-pixel motion.
+			hash = System.HashCode.Combine( hash, m.X / 4, m.Y / 4 );
+		}
+		return hash;
+	}
+}
