@@ -16,6 +16,11 @@ public sealed class Panel : Component, Component.IPressable
 	private Color initialTint;
 	private bool initialTintCaptured;
 
+	// Host-only cache of the resolved Player whose connection is currently
+	// hacking this panel. Resolved once on BeginHack; cleared on EndHack and
+	// validity-check failures. Avoids a per-frame scene scan in OnUpdate.
+	private Player cachedHacker;
+
 	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
 		var player = ResolvePlayer( e.Source?.GameObject );
@@ -40,6 +45,7 @@ public sealed class Panel : Component, Component.IPressable
 
 		HackingConnectionId = caller.Id;
 		HackStartTime = Time.Now;
+		cachedHacker = ResolvePlayerByConnectionId( caller.Id );
 	}
 
 	[Rpc.Host]
@@ -50,6 +56,7 @@ public sealed class Panel : Component, Component.IPressable
 		if ( HackingConnectionId != caller.Id ) return;
 
 		HackingConnectionId = Guid.Empty;
+		cachedHacker = null;
 	}
 
 	private static Player ResolvePlayer( GameObject go )
@@ -71,31 +78,47 @@ public sealed class Panel : Component, Component.IPressable
 		if ( !IsHackerStillValid() )
 		{
 			HackingConnectionId = Guid.Empty;
+			cachedHacker = null;
 			return;
 		}
 
 		if ( TargetSection is not null && TargetSection.State != VentingState.Idle )
 		{
 			HackingConnectionId = Guid.Empty;
+			cachedHacker = null;
 			return;
 		}
 
 		if ( Time.Now - HackStartTime >= HoldDuration )
 		{
 			HackingConnectionId = Guid.Empty;
+			cachedHacker = null;
 			TargetSection?.RequestVent();
 		}
 	}
 
 	private bool IsHackerStillValid()
 	{
-		if ( !Connection.All.Any( c => c.Id == HackingConnectionId ) ) return false;
+		// Use the cached hacker reference if it's still valid; only fall back
+		// to a scene scan if the cache was lost (e.g. host migration).
+		if ( cachedHacker is null || !cachedHacker.IsValid() )
+		{
+			cachedHacker = ResolvePlayerByConnectionId( HackingConnectionId );
+		}
 
-		var hackerPlayer = Game.ActiveScene?
+		if ( cachedHacker is null ) return false;
+		if ( !cachedHacker.IsSaboteur ) return false;
+
+		// Cheap connection check — just confirm the connection is still in the
+		// list. No second scene scan.
+		return Connection.All.Any( c => c.Id == HackingConnectionId );
+	}
+
+	private static Player ResolvePlayerByConnectionId( Guid connectionId )
+	{
+		return Game.ActiveScene?
 			.GetAllComponents<Player>()
-			.FirstOrDefault( p => p.Network.Owner?.Id == HackingConnectionId );
-
-		return hackerPlayer is not null && hackerPlayer.IsSaboteur;
+			.FirstOrDefault( p => p.Network.Owner?.Id == connectionId );
 	}
 
 	private void UpdateGlow()

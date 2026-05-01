@@ -135,6 +135,4 @@ public sealed class Section : Component
 			// Idle and Sealed are stationary; no transition out.
 		}
 	}
-
-	// Kill loop + Vented broadcast on Warning -> Venting — Task 12.
 }
