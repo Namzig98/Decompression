@@ -15,6 +15,24 @@ public sealed class Player : Component
 
 	public static event Action<Player, DeathCause> Died;
 
+	// Called by PlayerSpawner on the host when a connection joins mid-round.
+	// Marks the player dead-on-arrival (no corpse, no death event broadcast)
+	// and asks the owning client's Spectator to begin in FollowingLiving
+	// mode (skipping the corpse-lock phase).
+	public void SpawnAsLateJoiner()
+	{
+		if ( !Networking.IsHost ) return;
+		IsAlive = false;
+		NotifyLateJoinerLocal();
+	}
+
+	[Rpc.Owner]
+	private void NotifyLateJoinerLocal()
+	{
+		var spectator = Components.Get<Spectator>();
+		spectator?.Begin( null );
+	}
+
 	[Rpc.Host]
 	public void Kill( DeathCause cause, Vector3 sourcePosition )
 	{

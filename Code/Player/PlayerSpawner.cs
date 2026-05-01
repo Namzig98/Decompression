@@ -40,7 +40,10 @@ public sealed class PlayerSpawner : Component, Component.INetworkListener
 		if ( playerComponent != null )
 		{
 			playerComponent.OwnerConnectionId = connection.Id;
-			// Late-join behavior wired in Task 18.
+			if ( RoundInProgress )
+			{
+				playerComponent.SpawnAsLateJoiner();
+			}
 		}
 	}
 

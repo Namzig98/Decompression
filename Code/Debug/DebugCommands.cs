@@ -58,6 +58,24 @@ public static class DebugCommands
 		CorpseCleanupSignal.RaiseGenericCleanup();
 	}
 
+	[ConCmd( "decompv2_round_in_progress" )]
+	public static void SetRoundInProgress( bool value )
+	{
+		if ( !Networking.IsHost )
+		{
+			Log.Warning( "decompv2_round_in_progress: host only" );
+			return;
+		}
+		var spawner = Game.ActiveScene?.GetAllComponents<PlayerSpawner>().FirstOrDefault();
+		if ( spawner is null )
+		{
+			Log.Warning( "decompv2_round_in_progress: no PlayerSpawner in scene" );
+			return;
+		}
+		spawner.RoundInProgress = value;
+		Log.Info( $"PlayerSpawner.RoundInProgress = {value}" );
+	}
+
 	[ConCmd( "decompv2_vent_self" )]
 	public static void VentSelf()
 	{
