@@ -44,12 +44,13 @@
 		foreach ( var other in others )
 		{
 			var headPos = other.WorldPosition + Vector3.Up * 80f;
-			var screen = camera.PointToScreenNormalized( headPos );
-			if ( screen.z <= 0f ) continue;   // behind camera
-			var screenSize = Screen.Size;
-			var px = (int)(screen.x * screenSize.x);
-			var py = (int)(screen.y * screenSize.y);
-			markers.Add( new MarkerPos( px, py ) );
+
+			// Behind-camera cull: dot product against the camera's forward.
+			var toTarget = headPos - camera.WorldPosition;
+			if ( Vector3.Dot( toTarget, camera.WorldRotation.Forward ) <= 0f ) continue;
+
+			var screen = camera.PointToScreenPixels( headPos );
+			markers.Add( new MarkerPos( (int)screen.x, (int)screen.y ) );
 		}
 	}
 
