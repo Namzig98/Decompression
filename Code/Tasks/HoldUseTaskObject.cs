@@ -100,6 +100,7 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 		{
 			BroadcastHoldEnd();
 		}
+		cachedHolder = null;
 	}
 
 	private static Player ResolvePlayerByConnectionId( Guid connectionId )

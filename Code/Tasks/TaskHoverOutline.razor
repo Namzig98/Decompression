@@ -33,6 +33,18 @@
 			return;
 		}
 
+		// Early-out for dead players / spectators / saboteurs (no assigned
+		// tasks anyway). Avoids the per-frame trace + LINQ scan when the
+		// outline can't show.
+		var localPlayer = Game.ActiveScene
+			.GetAllComponents<Decompression.Player>()
+			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
+		if ( localPlayer is null || !localPlayer.IsAlive || localPlayer.IsSaboteur )
+		{
+			UpdateHoveredFlag( null );
+			return;
+		}
+
 		var camera = Game.ActiveScene?
 			.GetAllComponents<CameraComponent>()
 			.FirstOrDefault( c => c.IsMainCamera );
@@ -48,19 +60,10 @@
 
 		// Exclude the local player from the trace — otherwise the camera-
 		// forward ray hits the player's own collider before reaching the task.
-		var localPlayer = Game.ActiveScene
-			.GetAllComponents<Decompression.Player>()
-			.FirstOrDefault( p => p.Network.Owner == Connection.Local );
-
-		var traceBuilder = Game.ActiveScene.Trace
-			.Ray( origin, origin + direction * reach );
-
-		if ( localPlayer is not null )
-		{
-			traceBuilder = traceBuilder.IgnoreGameObjectHierarchy( localPlayer.GameObject );
-		}
-
-		var trace = traceBuilder.Run();
+		var trace = Game.ActiveScene.Trace
+			.Ray( origin, origin + direction * reach )
+			.IgnoreGameObjectHierarchy( localPlayer.GameObject )
+			.Run();
 
 		if ( trace.Hit && trace.GameObject is not null )
 		{

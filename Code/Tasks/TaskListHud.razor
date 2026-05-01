@@ -65,7 +65,7 @@
 		var hash = entries.Count;
 		foreach ( var e in entries )
 		{
-			hash = System.HashCode.Combine( hash, e.Done );
+			hash = System.HashCode.Combine( hash, e.Location, e.Name, e.Done );
 		}
 		return System.HashCode.Combine( hash, showList );
 	}

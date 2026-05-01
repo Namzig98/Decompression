@@ -47,8 +47,11 @@ public abstract class TaskObject : Component
 	public void Reset()
 	{
 		if ( !Networking.IsHost ) return;
-		BroadcastReset();
+		// OnReset runs first so subclasses can read pre-reset state
+		// (e.g. HoldingConnectionId) before BroadcastReset clears the
+		// synced fields.
 		OnReset();
+		BroadcastReset();
 	}
 
 	// Public host-side completion entry point for debug tooling. Bypasses
