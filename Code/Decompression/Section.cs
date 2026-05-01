@@ -65,6 +65,27 @@ public sealed class Section : Component
 			?? go.Root?.Components.Get<Player>( includeDisabled: true );
 	}
 
-	// State-machine OnUpdate transitions — Task 10.
+	protected override void OnUpdate()
+	{
+		if ( !Networking.IsHost ) return;
+
+		var elapsed = Time.Now - StateEnteredAt;
+
+		switch ( State )
+		{
+			case VentingState.Warning:
+				if ( elapsed >= WarningDuration )
+					EnterState( VentingState.Venting );
+				break;
+
+			case VentingState.Venting:
+				if ( elapsed >= VacuumDuration )
+					EnterState( VentingState.Sealed );
+				break;
+
+			// Idle and Sealed are stationary; no transition out.
+		}
+	}
+
 	// Kill loop + Vented broadcast on Warning -> Venting — Task 12.
 }
