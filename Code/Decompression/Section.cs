@@ -5,7 +5,7 @@ using Sandbox;
 
 namespace Decompression;
 
-public sealed class Section : Component, Component.ITriggerListener
+public sealed class Section : Component
 {
 	[Property] public string DisplayName { get; set; } = "";
 	[Property] public Hatch Hatch { get; set; }
@@ -90,9 +90,12 @@ public sealed class Section : Component, Component.ITriggerListener
 		occupants.Clear();
 	}
 
-	void Component.ITriggerListener.OnTriggerEnter( GameObject other )
+	// Public hooks called by SectionVolume relay components on child GameObjects
+	// that hold the actual BoxCollider triggers. Host-only — clients don't
+	// track occupancy.
+	public void OnVolumeEnter( GameObject other )
 	{
-		Log.Info( $"Section '{DisplayName}' OnTriggerEnter: other={other?.Name ?? "null"}, IsHost={Networking.IsHost}" );
+		Log.Info( $"Section '{DisplayName}' OnVolumeEnter: other={other?.Name ?? "null"}, IsHost={Networking.IsHost}" );
 		if ( !Networking.IsHost ) return;
 
 		var player = ResolvePlayer( other );
@@ -102,9 +105,9 @@ public sealed class Section : Component, Component.ITriggerListener
 		occupants.Add( player );
 	}
 
-	void Component.ITriggerListener.OnTriggerExit( GameObject other )
+	public void OnVolumeExit( GameObject other )
 	{
-		Log.Info( $"Section '{DisplayName}' OnTriggerExit: other={other?.Name ?? "null"}, IsHost={Networking.IsHost}" );
+		Log.Info( $"Section '{DisplayName}' OnVolumeExit: other={other?.Name ?? "null"}, IsHost={Networking.IsHost}" );
 		if ( !Networking.IsHost ) return;
 
 		var player = ResolvePlayer( other );
