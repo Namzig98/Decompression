@@ -51,23 +51,28 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void BroadcastRespawn( Vector3 position, Rotation rotation )
 	{
-		var owner = Network.Owner?.DisplayName ?? "?";
-		Log.Info( $"BroadcastRespawn[{owner}]: setting position={position}" );
 		IsAlive = true;
 
-		// Set rigidbody position+velocity first; on dynamic bodies the GameObject
-		// transform follows the Rigidbody.
+		// Disable physics during the teleport so no impulse is generated from
+		// the position delta or any momentary overlap. Re-enable + clear
+		// velocity afterward.
 		var body = Components.Get<Rigidbody>();
+		if ( body is not null )
+		{
+			body.MotionEnabled = false;
+		}
+
+		// Lift the spawn slightly so the capsule doesn't initialize with
+		// sub-pixel overlap into floor geometry.
+		WorldPosition = position + Vector3.Up * 8f;
+		WorldRotation = rotation;
+
 		if ( body is not null )
 		{
 			body.Velocity = Vector3.Zero;
 			body.AngularVelocity = Vector3.Zero;
+			body.MotionEnabled = true;
 		}
-
-		WorldPosition = position;
-		WorldRotation = rotation;
-
-		Log.Info( $"  After write[{owner}]: WorldPosition={WorldPosition}, IsHost={Networking.IsHost}, IsOwner={Network.IsOwner}" );
 	}
 
 	public static event Action<Player, DeathCause> Died;
