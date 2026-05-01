@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Sandbox;
 
 namespace Decompression;
@@ -29,8 +30,57 @@ public sealed class Section : Component
 
 	private void EnterState( VentingState next )
 	{
+		var prev = State;
 		State = next;
 		StateEnteredAt = Time.Now;
+
+		if ( prev == VentingState.Warning && next == VentingState.Venting )
+		{
+			OnEnterVenting();
+		}
+	}
+
+	private void OnEnterVenting()
+	{
+		if ( !Networking.IsHost ) return;
+		if ( Hatch is null )
+		{
+			Log.Warning( $"Section '{DisplayName}': cannot vent — Hatch not wired." );
+			return;
+		}
+
+		var killedSnapshot = occupants
+			.Where( p => p.IsValid() )
+			.ToList();
+		var hatchPos = Hatch.WorldPosition;
+
+		foreach ( var player in killedSnapshot )
+		{
+			player.Kill( DeathCause.Decompression, hatchPos );
+		}
+
+		var killedIds = killedSnapshot
+			.Select( p => p.OwnerConnectionId )
+			.ToArray();
+
+		BroadcastVented( killedIds );
+	}
+
+	[Rpc.Broadcast]
+	private void BroadcastVented( Guid[] killedConnectionIds )
+	{
+		var killed = new List<Player>();
+		var scene = Game.ActiveScene;
+		if ( scene is not null && killedConnectionIds is not null )
+		{
+			var allPlayers = scene.GetAllComponents<Player>().ToList();
+			foreach ( var id in killedConnectionIds )
+			{
+				var match = allPlayers.FirstOrDefault( p => p.OwnerConnectionId == id );
+				if ( match is not null ) killed.Add( match );
+			}
+		}
+		Vented?.Invoke( this, killed );
 	}
 
 	protected override void OnEnabled()
