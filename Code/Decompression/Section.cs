@@ -7,9 +7,8 @@ namespace Decompression;
 public sealed class Section : Component
 {
 	[Property] public string DisplayName { get; set; } = "";
-	// Re-enabled in Task 5 once Hatch and SectionDoor types exist.
-	// [Property] public Hatch Hatch { get; set; }
-	// [Property] public List<SectionDoor> Doors { get; set; } = new();
+	[Property] public Hatch Hatch { get; set; }
+	[Property] public List<SectionDoor> Doors { get; set; } = new();
 	[Property] public float WarningDuration { get; set; } = 4f;
 	[Property] public float VacuumDuration { get; set; } = 10f;
 
