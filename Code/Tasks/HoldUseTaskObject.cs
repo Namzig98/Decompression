@@ -83,6 +83,80 @@ public sealed class HoldUseTaskObject : TaskObject, Component.IPressable
 			.FirstOrDefault( p => p.OwnerConnectionId == connectionId );
 	}
 
-	// Host-side timer + completion validation in Task 6.
-	// UpdateGlow in Task 7.
+	protected override void OnUpdate()
+	{
+		UpdateGlow();
+
+		if ( !Networking.IsHost ) return;
+		if ( HoldingConnectionId == Guid.Empty ) return;
+
+		// Defense in depth: drop the hold if the holder is no longer connected
+		// or no longer alive.
+		if ( !IsHolderStillValid() )
+		{
+			cachedHolder = null;
+			BroadcastHoldEnd();
+			return;
+		}
+
+		// Completion check.
+		var elapsed = Time.Now - HoldStartTime;
+		if ( elapsed >= HoldDuration )
+		{
+			var holder = cachedHolder;
+
+			// Real completion ONLY when:
+			//   - holder still alive (already verified by validity check)
+			//   - holder is NOT a saboteur
+			//   - holder is the assigned crew for THIS task
+			// All other cases: visual-only fake completion (glow snaps but no
+			// MarkComplete fires).
+			bool shouldComplete =
+				holder is not null
+				&& holder.IsAlive
+				&& !holder.IsSaboteur
+				&& AssignedConnectionId == HoldingConnectionId;
+
+			if ( shouldComplete )
+			{
+				MarkComplete();
+			}
+
+			cachedHolder = null;
+			BroadcastHoldEnd();
+		}
+	}
+
+	private bool IsHolderStillValid()
+	{
+		if ( cachedHolder is null || !cachedHolder.IsValid() )
+		{
+			cachedHolder = ResolvePlayerByConnectionId( HoldingConnectionId );
+		}
+		if ( cachedHolder is null ) return false;
+		if ( !cachedHolder.IsAlive ) return false;
+
+		return Connection.All.Any( c => c.Id == HoldingConnectionId );
+	}
+
+	private void UpdateGlow()
+	{
+		if ( GlowRenderer is null ) return;
+
+		// Capture the renderer's idle tint once on first update so the lerp
+		// returns to it cleanly when no hold is in progress.
+		if ( !initialTintCaptured )
+		{
+			initialTint = GlowRenderer.Tint;
+			initialTintCaptured = true;
+		}
+
+		float progress = 0f;
+		if ( HoldingConnectionId != Guid.Empty )
+		{
+			progress = Math.Clamp( ( Time.Now - HoldStartTime ) / HoldDuration, 0f, 1f );
+		}
+
+		GlowRenderer.Tint = Color.Lerp( initialTint, Color.Red, progress );
+	}
 }
