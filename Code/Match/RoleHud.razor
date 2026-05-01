@@ -36,6 +36,12 @@
 			return;
 		}
 
+		// IsSaboteur may take one extra frame to settle on non-host saboteurs
+		// at round start (the [Sync] from host arrives one frame after the
+		// OnRoundStarted broadcast). The role-reveal flash uses the
+		// broadcast payload directly so the player sees the right thing
+		// during the reveal; this badge briefly shows CREW for one frame
+		// before catching up. Acceptable per spec §2.
 		showBadge = true;
 		if ( localPlayer.IsSaboteur )
 		{

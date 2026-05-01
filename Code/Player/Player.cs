@@ -15,15 +15,13 @@ public sealed class Player : Component
 	[Sync( SyncFlags.FromHost )] public Guid OwnerConnectionId { get; set; }
 	[Sync( SyncFlags.FromHost )] public bool IsSaboteur { get; private set; }
 
-	// DIAGNOSTIC: revert to host-only [Sync] write, no broadcast. Tests
-	// whether the per-player BroadcastIsSaboteur was disrupting client→
-	// client position sync. Saboteurs may not see their local role with
-	// this version, but Panel.BeginHack already validates host-side, so
-	// the gameplay still works — only the visual role display might be
-	// off on non-host clients during this test.
+	// Public API for setting saboteur role. Routes to host via [Rpc.Host]
+	// so any client (e.g. C2 task code, C3 voting code) can call it. Host
+	// writes the [Sync(SyncFlags.FromHost)] field which propagates to all
+	// clients on the next sync tick.
+	[Rpc.Host]
 	public void SetSaboteur( bool value )
 	{
-		if ( !Networking.IsHost ) return;
 		IsSaboteur = value;
 	}
 
@@ -36,10 +34,12 @@ public sealed class Player : Component
 	//      through the normal owner-authoritative physics sync — non-owner
 	//      writes briefly set a position then get reconciled on the next
 	//      sync tick from the owner.
-	// Host-only respawn: set IsAlive via host [Sync] write, then route an
-	// [Rpc.Owner] to the owning client to do the actual transform teleport
-	// (owner-authoritative). No [Rpc.Broadcast] on the Player — those
-	// disrupted client-to-client sync in testing.
+	// Host-only respawn API. Caller (Match) supplies the spawn point so it
+	// can coordinate unique-per-player assignments. Host writes IsAlive via
+	// [Sync(SyncFlags.FromHost)], then routes an [Rpc.Owner] to the owning
+	// client to do the actual transform teleport — owner-authoritative for
+	// physics, avoiding non-owner writes that would race with the rigidbody
+	// network sync.
 	public void RespawnForNewRound( Vector3 position, Rotation rotation )
 	{
 		if ( !Networking.IsHost ) return;
@@ -50,8 +50,9 @@ public sealed class Player : Component
 	[Rpc.Owner]
 	private void TeleportToSpawn( Vector3 position, Rotation rotation )
 	{
-		// Owner-only execution. Lift slightly above ground to avoid
-		// sub-pixel overlap with floor geometry.
+		// Lift +24u above the spawn point so the capsule doesn't initialize
+		// in sub-pixel overlap with floor geometry — that overlap can
+		// generate a separation impulse and fling the player.
 		var safePos = position + Vector3.Up * 24f;
 
 		var body = Components.Get<Rigidbody>();
