@@ -42,8 +42,6 @@ public sealed class Player : Component
 		var corpse = SpawnCorpse( cause, sourcePosition );
 		var corpseId = corpse?.GameObject?.Id ?? Guid.Empty;
 		OnPlayerDied( cause, corpseId, sourcePosition );
-
-		Died?.Invoke( this, cause );
 	}
 
 	protected override void OnUpdate()
@@ -110,6 +108,13 @@ public sealed class Player : Component
 	[Rpc.Broadcast]
 	private void OnPlayerDied( DeathCause cause, Guid corpseId, Vector3 sourcePosition )
 	{
+		// Fire the cross-system static event on every client so subscribers
+		// like DeathHud (which only render for the local player) work without
+		// caring whether their host is the one who initiated the kill.
+		// Group C subscribers that need host-only logic (e.g. win-condition
+		// checks) gate on Networking.IsHost themselves.
+		Died?.Invoke( this, cause );
+
 		// Cause-specific death sting plays positionally on every client so
 		// dead-too-late spectators and nearby living players hear it.
 		var sound = cause == DeathCause.Decompression
