@@ -30,18 +30,18 @@ public sealed class Player : Component
 		IsSaboteur = value;
 	}
 
-	// Reset this player's IsAlive flag to true and teleport them to a spawn
-	// point. Used by Match (C1) at round start and round end.
-	//
-	// Two-step: host writes the host-authoritative IsAlive flag, then routes
-	// an [Rpc.Owner] to the owning client so the transform write is
-	// owner-authoritative (player is the owner of their own physics body —
-	// host writing to it directly causes desyncs).
-	[Rpc.Host]
+	// Host-only entry. Picks a spawn point on the host and broadcasts a
+	// respawn (IsAlive + transform) to every client so:
+	//   1. IsAlive flips reliably on every client without depending on
+	//      [Sync(SyncFlags.FromHost)] (which has been unreliable for our
+	//      scene-static and replicated objects).
+	//   2. The owning client's local WorldPosition/WorldRotation write wins
+	//      through the normal owner-authoritative physics sync — non-owner
+	//      writes briefly set a position then get reconciled on the next
+	//      sync tick from the owner.
 	public void RespawnForNewRound()
 	{
 		if ( !Networking.IsHost ) return;
-		IsAlive = true;
 
 		var spawner = Game.ActiveScene?.GetAllComponents<PlayerSpawner>().FirstOrDefault();
 		Vector3 spawnPos = WorldPosition;
@@ -52,13 +52,18 @@ public sealed class Player : Component
 			spawnPos = pick.WorldPosition;
 			spawnRot = pick.WorldRotation;
 		}
+		else
+		{
+			Log.Warning( "Player.RespawnForNewRound: no PlayerSpawner or SpawnPoints in scene" );
+		}
 
-		TeleportToSpawn( spawnPos, spawnRot );
+		BroadcastRespawn( spawnPos, spawnRot );
 	}
 
-	[Rpc.Owner]
-	private void TeleportToSpawn( Vector3 position, Rotation rotation )
+	[Rpc.Broadcast]
+	private void BroadcastRespawn( Vector3 position, Rotation rotation )
 	{
+		IsAlive = true;
 		WorldPosition = position;
 		WorldRotation = rotation;
 	}
