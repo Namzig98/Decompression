@@ -23,10 +23,9 @@ public sealed class Panel : Component, Component.IPressable
 
 	bool Component.IPressable.Press( Component.IPressable.Event e )
 	{
-		var player = ResolvePlayer( e.Source?.GameObject );
-		if ( player is null ) return false;
-		if ( !player.IsSaboteur ) return false;
-
+		// Always route to host. Host validates IsSaboteur authoritatively
+		// inside BeginHack — relying on the local IsSaboteur flag here was
+		// racing against the host→client broadcast that propagates the role.
 		BeginHack();
 		return true;
 	}
@@ -43,9 +42,18 @@ public sealed class Panel : Component, Component.IPressable
 		var caller = Rpc.Caller;
 		if ( caller is null ) return;
 
+		// Host-side authoritative role check. Replaces the now-removed
+		// client-side check in Press, which was racing against the broadcast
+		// that propagates IsSaboteur to non-host clients.
+		var hackerPlayer = ResolvePlayerByConnectionId( caller.Id );
+		if ( hackerPlayer is null || !hackerPlayer.IsSaboteur )
+		{
+			return;
+		}
+
 		HackingConnectionId = caller.Id;
 		HackStartTime = Time.Now;
-		cachedHacker = ResolvePlayerByConnectionId( caller.Id );
+		cachedHacker = hackerPlayer;
 	}
 
 	[Rpc.Host]
