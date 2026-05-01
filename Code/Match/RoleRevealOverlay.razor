@@ -1,0 +1,58 @@
+@using Sandbox;
+@using Sandbox.UI;
+@namespace Decompression
+@inherits PanelComponent
+
+<root>
+	@if ( showOverlay )
+	{
+		<div class="overlay @overlayClass">
+			<div class="title">@titleText</div>
+			<div class="subtitle">@subtitleText</div>
+		</div>
+	}
+</root>
+
+@code {
+	bool showOverlay;
+	string titleText = "";
+	string subtitleText = "";
+	string overlayClass = "";
+	TimeSince shownAt;
+	const float OverlayDuration = 3f;
+
+	protected override void OnAwake()
+	{
+		Decompression.Match.RoundStarted += OnRoundStarted;
+	}
+
+	protected override void OnDestroy()
+	{
+		Decompression.Match.RoundStarted -= OnRoundStarted;
+	}
+
+	private void OnRoundStarted( Decompression.Match match, bool localIsSaboteur )
+	{
+		if ( localIsSaboteur )
+		{
+			titleText = "YOU ARE THE SABOTEUR";
+			subtitleText = "Vent the crew before they finish their tasks.";
+			overlayClass = "sab";
+		}
+		else
+		{
+			titleText = "YOU ARE A CREWMATE";
+			subtitleText = "Survive. Trust no one.";
+			overlayClass = "crew";
+		}
+		showOverlay = true;
+		shownAt = 0f;
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine( showOverlay, titleText, overlayClass );
+
+	protected override void OnUpdate()
+	{
+		if ( showOverlay && shownAt > OverlayDuration ) showOverlay = false;
+	}
+}
