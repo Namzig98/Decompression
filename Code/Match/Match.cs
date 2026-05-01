@@ -62,13 +62,50 @@ public sealed class Match : Component
 				break;
 
 			case MatchState.Round:
-				// Win-condition checks added in Task 8.
+				TickRoundWinChecks();
 				break;
 
 			case MatchState.RoundEnd:
 				if ( SecondsLeftInState() <= 0f ) EnterLobby();
 				break;
 		}
+	}
+
+	private void TickRoundWinChecks()
+	{
+		// Cheapest check first.
+		if ( SecondsLeftInState() <= 0f )
+		{
+			EnterRoundEnd( MatchOutcome.Saboteur, "time expired" );
+			return;
+		}
+
+		var scene = Game.ActiveScene;
+		if ( scene is null ) return;
+
+		var alivePlayers = scene.GetAllComponents<Player>().Where( p => p.IsAlive ).ToList();
+		int crewAlive = alivePlayers.Count( p => !p.IsSaboteur );
+		int sabsAlive = alivePlayers.Count( p => p.IsSaboteur );
+
+		if ( crewAlive == 0 )
+		{
+			EnterRoundEnd( MatchOutcome.Saboteur, "all crew dead" );
+			return;
+		}
+
+		if ( sabsAlive == 0 )
+		{
+			EnterRoundEnd( MatchOutcome.Crew, "all saboteurs eliminated" );
+			return;
+		}
+
+		if ( crewAlive == 1 && sabsAlive >= 1 )
+		{
+			EnterRoundEnd( MatchOutcome.Saboteur, "1v1 endgame — saboteur wins by default" );
+			return;
+		}
+
+		// C2 (tasks complete) and C3 (saboteurs voted out) call EndRound directly.
 	}
 
 	private void TickLobby()
